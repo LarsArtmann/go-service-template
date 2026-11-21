@@ -1,0 +1,7 @@
+name: go-service-template
+description: The fleet's service archetype — go-appkit preset spine + cmdguard CLI + nix/BuildFlow/CI/systemd posture, one clone from zero.
+tags:
+  - template
+  - go
+  - appkit
+importance: 70

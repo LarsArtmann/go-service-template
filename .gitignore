@@ -1,0 +1,5 @@
+/bin/
+/vendorHash.nix.orig
+*.db
+/result
+/result-*

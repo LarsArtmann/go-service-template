@@ -32,8 +32,13 @@ func run(ctx context.Context, args []string) error {
 			serve, err := v5.NewCommand(
 				"serve",
 				serveFlags{},
-				func(ctx context.Context, cfg *app.Config, _ serveFlags) error {
-					return app.Serve(ctx, *cfg)
+				func(ctx context.Context, _ *app.Config, _ serveFlags) error {
+					cfg, err := app.Load()
+					if err != nil {
+						return err
+					}
+
+					return app.Serve(ctx, cfg)
 				},
 				v5.WithShort("start the HTTP service (blocks until SIGINT/SIGTERM)"),
 				v5.WithNoArgs(),

@@ -1,0 +1,19 @@
+package views
+
+templ hello(version string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>It runs.</title>
+		</head>
+		<body>
+			<main>
+				<h1>It runs.</h1>
+				<p>Scaffolded from go-service-template · version { version }.</p>
+				<p>The preset spine already serves <code>/healthz</code>, <code>/readyz</code>, <code>/version</code>, and pretty 404s.</p>
+			</main>
+		</body>
+	</html>
+}

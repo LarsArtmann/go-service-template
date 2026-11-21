@@ -1,0 +1,7 @@
+# BuildFlow policy — non-default values ONLY (canonical keys per the
+# buildflow skill; unknown keys warn on every load).
+env:
+  # Hermetic resolution: consumers resolve via the proxy; BuildFlow go steps
+  # must do the same (workspace-less single module here, but keep the
+  # convention so a future multi-module layout inherits it).
+  GOWORK: "off"

@@ -1,0 +1,24 @@
+[Unit]
+Description=the <name> service (go-appkit preset spine)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+ExecStart=/usr/local/bin/app serve
+Environment=APP_ADDR=:8080
+# The appkit/systemd module sends READY=1 post-listen, STOPPING=1 at drain
+# start, and keeps the watchdog at WatchdogSec/2 — Type=notify + this value
+# complete the contract. systemd pulls the service on failure; appkit's
+# classified exit codes (errorfamily.HandleError) keep journalctl honest.
+WatchdogSec=30s
+Restart=on-failure
+User=app
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

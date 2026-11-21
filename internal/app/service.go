@@ -35,7 +35,7 @@ type Config struct {
 // Load resolves the config through the config module (precedence
 // flag > env > file > default; one Rejection naming every bad field).
 // Add config.WithFile("app.yaml") when the service gains a file layer.
-func Load() (Config, error) {
+func Load() (*Config, error) {
 	return config.Load[Config]()
 }
 
@@ -43,7 +43,7 @@ func Load() (Config, error) {
 // block on Run. Signal handling belongs to the core Run — SIGINT/SIGTERM
 // trigger the full graceful drain (ready-flip → DrainHooks → drain wait →
 // listener close → ShutdownHooks).
-func Serve(ctx context.Context, cfg Config) error {
+func Serve(ctx context.Context, cfg *Config) error {
 	svc, err := appkitpreset.New(appkitpreset.Config{
 		Addr:     cfg.Addr,
 		LogLevel: appkit.LogLevel(cfg.LogLevel),
@@ -56,7 +56,7 @@ func Serve(ctx context.Context, cfg Config) error {
 
 	api.Register(svc.Mux, api.Deps{Version: Version})
 
-	if err := views.Mount(svc.Mux); err != nil {
+	if err := views.Mount(svc.Mux, Version); err != nil {
 		return fmt.Errorf("mount views: %w", err)
 	}
 
