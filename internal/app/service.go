@@ -7,12 +7,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/larsartmann/go-appkit/config"
-	appkit "github.com/larsartmann/go-appkit"
-	appkitpreset "github.com/larsartmann/go-appkit/preset"
-
 	"github.com/example/go-service-template/internal/api"
 	"github.com/example/go-service-template/views"
+	appkit "github.com/larsartmann/go-appkit"
+	"github.com/larsartmann/go-appkit/config"
+	appkitpreset "github.com/larsartmann/go-appkit/preset"
 )
 
 // Name is the service identity — rename it (and the module path) when
@@ -23,13 +22,15 @@ const (
 )
 
 // Version is stamped at build time: -ldflags "-X .../internal/app.Version=v1.2.3".
+//
+//nolint:gochecknoglobals // ldflags-stamped build version
 var Version = "dev"
 
 // Config is the service's own settings (NOT the framework's — the preset
 // legs are env-switched, see the preset README grammar table).
 type Config struct {
 	Addr     string `default:":8080" env:"APP_ADDR"`
-	LogLevel string `default:"info" env:"APP_LOG_LEVEL"`
+	LogLevel string `default:"info"  env:"APP_LOG_LEVEL"`
 }
 
 // Load resolves the config through the config module (precedence
@@ -44,7 +45,7 @@ func Load() (*Config, error) {
 // trigger the full graceful drain (ready-flip → DrainHooks → drain wait →
 // listener close → ShutdownHooks).
 func Serve(ctx context.Context, cfg *Config) error {
-	svc, err := appkitpreset.New(appkitpreset.Config{
+	svc, err := appkitpreset.New(appkitpreset.Config{ //nolint:exhaustruct_v5 // legs stay env-driven
 		Addr:     cfg.Addr,
 		LogLevel: appkit.LogLevel(cfg.LogLevel),
 		Version:  Version,
@@ -60,5 +61,5 @@ func Serve(ctx context.Context, cfg *Config) error {
 		return fmt.Errorf("mount views: %w", err)
 	}
 
-	return svc.Run(ctx)
+	return svc.Run(ctx) //nolint:wrapcheck // top-level composition root returns the lifecycle error as-is
 }

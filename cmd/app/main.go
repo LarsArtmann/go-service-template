@@ -14,9 +14,8 @@ import (
 	"fmt"
 	"os"
 
-	v5 "github.com/larsartmann/cmdguard/v5/pkg/cmdguard/v5"
-
 	"github.com/example/go-service-template/internal/app"
+	v5 "github.com/larsartmann/cmdguard/v5/pkg/cmdguard/v5"
 )
 
 func main() {
@@ -27,7 +26,7 @@ func run(ctx context.Context, args []string) error {
 	cli, err := v5.NewApp(
 		app.Name,
 		app.Short,
-		app.Config{},
+		app.Config{}, //nolint:exhaustruct_v5 // env+defaults fill the rest
 		func(cli *v5.CLI[app.Config]) error {
 			serve, err := v5.NewCommand(
 				"serve",
@@ -35,7 +34,7 @@ func run(ctx context.Context, args []string) error {
 				func(ctx context.Context, _ *app.Config, _ serveFlags) error {
 					cfg, err := app.Load()
 					if err != nil {
-						return err
+						return err //nolint:wrapcheck // the CLI runner owns printing (printed exactly once)
 					}
 
 					return app.Serve(ctx, cfg)
@@ -44,7 +43,7 @@ func run(ctx context.Context, args []string) error {
 				v5.WithNoArgs(),
 			)
 			if err != nil {
-				return err
+				return err //nolint:wrapcheck // the CLI runner owns printing
 			}
 
 			return v5.AddCommand(cli, serve)
@@ -55,10 +54,10 @@ func run(ctx context.Context, args []string) error {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 
-		return err
+		return err //nolint:wrapcheck // the CLI runner owns printing
 	}
 
-	return cli.ExecuteWithArgs(ctx, args)
+	return cli.ExecuteWithArgs(ctx, args) //nolint:wrapcheck // the CLI runner owns printing
 }
 
 // serveFlags is empty on purpose: the service reads its settings from env

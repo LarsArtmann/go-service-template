@@ -48,6 +48,6 @@ func TestRegister_UnmatchedPathFallsThrough(t *testing.T) {
 	mux.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/nope", nil))
 
 	if rec.Code != http.StatusNotFound {
-		t.Errorf("unmatched path status = %d, want 404 (the preset's errorpages spine owns the pretty rendering)", rec.Code)
+		t.Errorf("unmatched path status = %d, want 404 (pretty rendering is the errorpages spine)", rec.Code)
 	}
 }
