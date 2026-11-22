@@ -17,13 +17,15 @@ All notable changes to this project are documented in this file.
   because completed work belongs in this file. README's rename checklist was
   wrong: it listed only `cmd/ internal/ views/`, omitting `go.mod` and the
   `flake.nix` `ldflags` path, and said nothing about `pname` naming the image
-  repository. It now carries the `grep -rl | xargs sed` command and a proof
-  step. The README repo map gained `docs/`, the doc set, `CONTRIBUTING.md`,
+  repository. It now carries the `grep -rl | xargs perl -pi` command and a
+  proof step. The README repo map gained `docs/`, the doc set, `CONTRIBUTING.md`,
   `SECURITY.md`, `LICENSE`, and the `nix-image` CI job; the framework-surface
   list now names the dashboard at `/health` and the SSE hub at `/events`.
   AGENTS.md gained a docs map, the rename-coverage contract, the
-  absolute-`dprint.json` gotcha, the `.dockerignore` artifact note, and the
-  `docs-gates run .` command.
+  absolute-`dprint.json` gotcha, the `.dockerignore` artifact note, the
+  `docs-gates run .` command, the ruling that posture-only changes do NOT bump
+  the version stamp (so `Generated` still reads 2026-11-21), and the
+  auto-commit daemon note.
 - 2026-11-22: removed the Dockerfile — OCI images build from the flake
   (go-standard `container` option, nix2container). Same posture, no daemon:
   non-root `65532:65532`, `/bin/app serve`, `8080/tcp`, cacert included,

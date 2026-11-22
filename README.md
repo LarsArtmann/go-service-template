@@ -19,16 +19,16 @@ Then rename (the only mechanical step). Every place the template name lives:
 
    ```bash
    grep -rl 'github.com/example/go-service-template' --exclude-dir=.git --exclude-dir=result . \
-     | xargs sed -i 's|github.com/example/go-service-template|github.com/you/your-service|g'
+     | xargs perl -pi -e 's|github.com/example/go-service-template|github.com/you/your-service|g'
    ```
 
    That set is `go.mod`, `cmd/app/main.go`, `internal/app/service.go`,
    `internal/api/routes_test.go`, `flake.nix` (the `ldflags -X` path) and
    this README.
 2. **Names** — the `internal/app` `Name`/`Short` consts, the
-   `systemd/app.service` `Description` + `ExecStart`, the `flake.nix` `pname`
-   + `description`, and the `<name>` placeholders in `flake.nix` and
-   `systemd/app.service`.
+   `systemd/app.service` `Description` and `ExecStart`, the `flake.nix`
+   `pname` and `description` fields, and the `<name>` placeholders in
+   `flake.nix` and `systemd/app.service`.
 3. **Image name** — the OCI image is `container.registry` (`ghcr.io/larsartmann`
    by default) + the package name, so `pname` renames the repository too. Set
    `container.registry` when the project's remote is not GitHub.
@@ -64,7 +64,7 @@ buildflow --build-mode dev  # the full gate: build, race tests, lint, nix, docs
 | `FEATURES.md`        | Honest inventory: what works, what is partial, what is switched off              |
 | `TODO_LIST.md`       | Open work only; completed items move to `CHANGELOG.md`                           |
 | `ROADMAP.md`         | Long-term direction and raw ideas, not tasks                                     |
-| `CONTRIBUTING.md`    | Owner workflow + the dogfood contract every scaffold change must honour           |
+| `CONTRIBUTING.md`    | Owner workflow + the dogfood contract every scaffold change must honour          |
 | `SECURITY.md`        | Private vulnerability reporting path                                             |
 | `LICENSE`            | PROPRIETARY (fleet posture)                                                      |
 
@@ -109,14 +109,14 @@ Each doc has one job, and a fact lives in exactly one of them:
 
 | File                      | Owns                                          |
 | ------------------------- | --------------------------------------------- |
-| `README.md`               | What this is, why, how to start (this file)    |
-| `AGENTS.md`               | Non-obvious context for AI sessions            |
-| `FEATURES.md`             | What ships + honest status per feature         |
-| `TODO_LIST.md`            | Open, bounded, short-term work                 |
-| `ROADMAP.md`              | Long-term direction, raw ideas                 |
-| `CHANGELOG.md`            | What changed, per date                         |
-| `docs/DOMAIN_LANGUAGE.md` | The archetype's vocabulary                     |
-| `docs/status/`            | Point-in-time reports (annotated, not edited)  |
+| `README.md`               | What this is, why, how to start (this file)   |
+| `AGENTS.md`               | Non-obvious context for AI sessions           |
+| `FEATURES.md`             | What ships + honest status per feature        |
+| `TODO_LIST.md`            | Open, bounded, short-term work                |
+| `ROADMAP.md`              | Long-term direction, raw ideas                |
+| `CHANGELOG.md`            | What changed, per date                        |
+| `docs/DOMAIN_LANGUAGE.md` | The archetype's vocabulary                    |
+| `docs/status/`            | Point-in-time reports (annotated, not edited) |
 
 Run the docs gates with `docs-gates run .` (freshness, annotate, routing,
 cadence).

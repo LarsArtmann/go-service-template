@@ -5,15 +5,15 @@ in the appkit READMEs (this repo contains no framework code).
 
 ## Docs map — each doc owns one thing
 
-| File                      | Owns                                                    |
-| ------------------------- | ------------------------------------------------------- |
+| File                      | Owns                                                     |
+| ------------------------- | -------------------------------------------------------- |
 | `README.md`               | Why the archetype exists, install, rename, how to verify |
-| `FEATURES.md`             | What ships, with honest per-feature status + evidence   |
-| `TODO_LIST.md`            | Open bounded work only (never completed items)          |
-| `ROADMAP.md`              | Long-term direction and raw ideas, not tasks            |
-| `CHANGELOG.md`            | Dated history of what changed                           |
+| `FEATURES.md`             | What ships, with honest per-feature status + evidence    |
+| `TODO_LIST.md`            | Open bounded work only (never completed items)           |
+| `ROADMAP.md`              | Long-term direction and raw ideas, not tasks             |
+| `CHANGELOG.md`            | Dated history of what changed                            |
 | `docs/DOMAIN_LANGUAGE.md` | The archetype's vocabulary (verify terms against code)   |
-| `docs/status/`            | Timestamped reports — annotate, never rewrite           |
+| `docs/status/`            | Timestamped reports — annotate, never rewrite            |
 
 Doctrine: a completed TODO leaves `TODO_LIST.md` for `CHANGELOG.md`; a fact
 lives in exactly one doc; `docs-gates run .` is the gate over all of it.
@@ -34,6 +34,11 @@ re-runs the dogfood probe (build, boot, `/healthz` + `/api/status` probe,
 SIGTERM graceful-stop). An appkit adopter refreshing from the template
 re-clones rather than merging — the template is a starting point, not a
 shared module.
+
+**Posture-only changes do NOT bump this stamp.** Docs, CI, flake packaging and
+the Dockerfile→Nix-OCI migration changed the repo without moving the appkit
+pins, so `Generated` still reads 2026-11-21. The ritual exists to make
+dependency drift loud, not to date-stamp every commit.
 
 ## Build & verify
 
@@ -80,8 +85,8 @@ they are not layered.
 - **The rename is not confined to Go files.** `go.mod`, the `flake.nix`
   `ldflags -X` path, and `pname` (which names the image repository:
   `container.registry` + package name) all carry the template identity. The
-  README's rename section has the `grep -rl | xargs sed` command and the
-  proof step; run the proof, not just the rename.
+  README's rename section has the `grep -rl | xargs perl -pi` command and
+  the proof step; run the proof, not just the rename.
 - **`dprint.json` names absolute plugin paths**
   (`/home/lars/.local/state/buildflow/dprint-plugins/...`) whenever
   `BUILDFLOW_DPRINT_PLUGINS` is set, which is the owner machine's default.
@@ -102,3 +107,7 @@ they are not layered.
 - Probe boot on a non-8080 port (`APP_ADDR=:18089`) — dev machines commonly
   have other services squatting 8080; the app classifies the bind failure
   as `[Infrastructure:server.listen_failed]`.
+- **An auto-git daemon commits the working tree every few minutes.** Commit
+  coherent work yourself before its next tick; otherwise it batches your
+  changes with unrelated ones and history attribution blurs (observed
+  2026-11-22, commit `fb7200c`: eleven files from three different authors).

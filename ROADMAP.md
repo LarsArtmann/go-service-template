@@ -105,6 +105,19 @@ Raw ideas:
 - A first-class metrics decision (the preset passes `Config.Metrics` through
   verbatim; the template currently says nothing about it).
 
+## Open questions (owner decisions)
+
+Two fleet-level calls are blocked on the owner, not on work. They are tracked
+as rows so they cannot disappear, but the question belongs here:
+
+1. **Image publishing:** CI pushes to `ghcr.io/larsartmann/<name>` (needs
+   registry credentials in CI) or publishing stays a manual
+   `nix run .#app-image-push`? Decides [TODO_LIST.md](TODO_LIST.md) row 5.
+2. **Go floor shape:** keep the patch-pinned `go 1.27.4` (fleet floor ritual,
+   mirrored by the flake tarball pin) or adopt BuildFlow's major.minor-only
+   rule? Two fleet standards disagree here. Decides
+   [TODO_LIST.md](TODO_LIST.md) row 6.
+
 ## Non-goals
 
 - **Framework code in this repo.** Lifecycle, middleware, health, error pages,
@@ -119,3 +132,6 @@ Raw ideas:
   split-brain skeleton.
 - **Auth, storage, and business entities.** Adopters bring their domain; the
   template ships an event-sourcing stub and nothing else.
+- **Extending cmdguard's `doctor` to assert image posture.** Image posture is
+  already proven by `checks.container-structure`; a second proof surface would
+  drift from the first.
