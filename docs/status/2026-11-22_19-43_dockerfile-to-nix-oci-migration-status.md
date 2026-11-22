@@ -29,29 +29,29 @@
 
 ## a) FULLY DONE
 
-| Item | Evidence |
-| --- | --- |
-| Dockerfile removed (trashed, not rm) | glob `**/Dockerfile*` → zero matches; repo-wide grep → no live references except CHANGELOG history line |
-| OCI image from flake: `container.enable` + `cmd=["serve"]` + `exposedPorts=["8080/tcp"]` wired via the go-standard module (nix2container auto-wired by the composite flakeModule, no new flake inputs) | `flake.nix:51-59`; `nix build .#app-image` green |
-| Version stamp moved from Docker build arg to flake `ldflags` (`-X .../internal/app.Version=${self.rev or self.dirtyRev or "dev"}`), `self` destructured in outputs lambda (fleet precedent bank-sync `flake.nix:263`) | `flake.nix:23,44-48`; app drv built clean |
-| Image posture parity confirmed: non-root `65532:65532`, `/bin/app serve`, `8080/tcp`, cacert (module default), content-hash tag | jq over `image-app.json`; module defaults in `go-standard.nix:836-851` |
-| README updated: posture line ("OCI images build straight from the flake, no Dockerfile"), rename checklist item now "the flake.nix `-X` flag", What's-inside table row `flake.nix … + OCI image`, Dockerfile row removed | `README.md:7-9,19-20,33`; dprint/treefmt green |
-| AGENTS.md: new "OCI image (no Dockerfile, by policy)" section + `nix build .#app-image` in Build & verify | `AGENTS.md:31-43` |
-| CHANGELOG entry under `[Unreleased] → Changed` (2026-11-22, full output list) | `CHANGELOG.md:7-14` |
-| Pre-existing gate blocker fixed: `GOTOOLCHAIN: "go1.27.4"` pinned in `.buildflow.yml` (BuildFlow's derived floor 1.27.3 < go.mod floor 1.27.4; pim-sync precedent) — unblocks govalid-generate | `.buildflow.yml:9-13`; govalid green in final run |
-| Pre-existing gate blocker fixed: `TODO_LIST.md` created (docs-gates cadence was FATAL: "reading TODO_LIST.md: no such file") | docs-gates cadence → PURGE-HEALTHY / ARCHIVE-HEALTHY; findings gate green |
-| Formatter drift repaired via `buildflow --fix` (detect→repair→verify): `views/hello_templ.go` import block (pre-existing treefmt red), `flake.nix` interpolation wrap, `SECURITY.md` table, `dependabot.yml` quote style, `routes_test.go` | treefmt-check green; `b617f24` stat |
-| BuildFlow dev gate fully green at session end | final run: 60 success / 0 failed / 0 error findings above gate |
+| Item                                                                                                                                                                                                                                       | Evidence                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| Dockerfile removed (trashed, not rm)                                                                                                                                                                                                       | glob `**/Dockerfile*` → zero matches; repo-wide grep → no live references except CHANGELOG history line |
+| OCI image from flake: `container.enable` + `cmd=["serve"]` + `exposedPorts=["8080/tcp"]` wired via the go-standard module (nix2container auto-wired by the composite flakeModule, no new flake inputs)                                     | `flake.nix:51-59`; `nix build .#app-image` green                                                        |
+| Version stamp moved from Docker build arg to flake `ldflags` (`-X .../internal/app.Version=${self.rev or self.dirtyRev or "dev"}`), `self` destructured in outputs lambda (fleet precedent bank-sync `flake.nix:263`)                      | `flake.nix:23,44-48`; app drv built clean                                                               |
+| Image posture parity confirmed: non-root `65532:65532`, `/bin/app serve`, `8080/tcp`, cacert (module default), content-hash tag                                                                                                            | jq over `image-app.json`; module defaults in `go-standard.nix:836-851`                                  |
+| README updated: posture line ("OCI images build straight from the flake, no Dockerfile"), rename checklist item now "the flake.nix `-X` flag", What's-inside table row `flake.nix … + OCI image`, Dockerfile row removed                   | `README.md:7-9,19-20,33`; dprint/treefmt green                                                          |
+| AGENTS.md: new "OCI image (no Dockerfile, by policy)" section + `nix build .#app-image` in Build & verify                                                                                                                                  | `AGENTS.md:31-43`                                                                                       |
+| CHANGELOG entry under `[Unreleased] → Changed` (2026-11-22, full output list)                                                                                                                                                              | `CHANGELOG.md:7-14`                                                                                     |
+| Pre-existing gate blocker fixed: `GOTOOLCHAIN: "go1.27.4"` pinned in `.buildflow.yml` (BuildFlow's derived floor 1.27.3 < go.mod floor 1.27.4; pim-sync precedent) — unblocks govalid-generate                                             | `.buildflow.yml:9-13`; govalid green in final run                                                       |
+| Pre-existing gate blocker fixed: `TODO_LIST.md` created (docs-gates cadence was FATAL: "reading TODO_LIST.md: no such file")                                                                                                               | docs-gates cadence → PURGE-HEALTHY / ARCHIVE-HEALTHY; findings gate green                               |
+| Formatter drift repaired via `buildflow --fix` (detect→repair→verify): `views/hello_templ.go` import block (pre-existing treefmt red), `flake.nix` interpolation wrap, `SECURITY.md` table, `dependabot.yml` quote style, `routes_test.go` | treefmt-check green; `b617f24` stat                                                                     |
+| BuildFlow dev gate fully green at session end                                                                                                                                                                                              | final run: 60 success / 0 failed / 0 error findings above gate                                          |
 
 ## b) PARTIALLY DONE
 
-| Item | Works | Open | Effort |
-| --- | --- | --- | --- |
-| OCI image as a *usable* artifact | builds, structure-gated, config verified | never booted; `/version` stamp unconfirmed inside image; no publish path exercised | S (boot smoke), M (publish) |
-| `.dockerignore` removal | discovered during report prep | left in place deliberately — it is buildflow-managed and `--fix` may regenerate it; real fix is upstream (see d1) | M (upstream investigation) |
-| Docker→Nix posture doc set | README/AGENTS/CHANGELOG updated | systemd-unit-vs-container relationship (sd_notify no-op in container) undocumented; no `image-load` example in README Verify section | S |
-| Gate hygiene | dev mode green | `nix-hash-fix` WARN "failed 14/14 times (100%)" never investigated; buildflow binary staleness WARN never checked via doctor | S–M |
-| CI pin bumps (tool-made) | `ci.yml` diff read, pins are real SHA-pinned actions with version comments | zero CI execution evidence (no push); also `728228f`'s golangci-lint v2 install step untouched but not re-validated against setup-go v7 | S (push/observe) |
+| Item                             | Works                                                                      | Open                                                                                                                                    | Effort                      |
+| -------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| OCI image as a _usable_ artifact | builds, structure-gated, config verified                                   | never booted; `/version` stamp unconfirmed inside image; no publish path exercised                                                      | S (boot smoke), M (publish) |
+| `.dockerignore` removal          | discovered during report prep                                              | left in place deliberately — it is buildflow-managed and `--fix` may regenerate it; real fix is upstream (see d1)                       | M (upstream investigation)  |
+| Docker→Nix posture doc set       | README/AGENTS/CHANGELOG updated                                            | systemd-unit-vs-container relationship (sd_notify no-op in container) undocumented; no `image-load` example in README Verify section    | S                           |
+| Gate hygiene                     | dev mode green                                                             | `nix-hash-fix` WARN "failed 14/14 times (100%)" never investigated; buildflow binary staleness WARN never checked via doctor            | S–M                         |
+| CI pin bumps (tool-made)         | `ci.yml` diff read, pins are real SHA-pinned actions with version comments | zero CI execution evidence (no push); also `728228f`'s golangci-lint v2 install step untouched but not re-validated against setup-go v7 | S (push/observe)            |
 
 ## c) NOT STARTED
 
@@ -77,12 +77,12 @@
 ## e) WHAT WE SHOULD IMPROVE
 
 1. **Verify by execution, not by inspection, for artifacts.** A built derivation ≠ a working image. Add a boot-smoke (load → run → probe → drain) to the template's ritual; ideally mechanize as a flake check.
-2. **Read hidden files at discovery.** My discovery pass used content-grep + `Dockerfile*` glob; `ls -la` at the start would have surfaced `.dockerignore` immediately. Docker posture lives in *pairs* (Dockerfile + .dockerignore) — delete them as a unit.
+2. **Read hidden files at discovery.** My discovery pass used content-grep + `Dockerfile*` glob; `ls -la` at the start would have surfaced `.dockerignore` immediately. Docker posture lives in _pairs_ (Dockerfile + .dockerignore) — delete them as a unit.
 3. **Treat managed files as policy decisions.** A buildflow-managed file contradicting repo policy needs a skip-with-rationale or an upstream fix, not a silent delete-and-regenerate loop.
 4. **Commit own work promptly in daemon-run repos** — otherwise unrelated working-tree changes get attributed to your commit.
 5. **Session-start inventory should include `git log -5` + `ls -la`,** not just `git status` — `fb7200c`'s foreign content would have been visible earlier.
 6. **Managed-tool warnings are findings, not noise:** the `nix-hash-fix 14/14` and stale-binary WARNs were visible in run output and left uninvestigated — both are close-the-loop obligations.
-7. **When deleting a posture, grep for the *ecosystem*, not just the filename:** `docker` content-grep missed `.dockerignore` because its *content* contains no "docker" word. Filename-set grep (`ls -a | grep -i docker`) is the right primitive.
+7. **When deleting a posture, grep for the _ecosystem_, not just the filename:** `docker` content-grep missed `.dockerignore` because its _content_ contains no "docker" word. Filename-set grep (`ls -a | grep -i docker`) is the right primitive.
 
 ## f) NEXT — up to 50 things (ranked; Impact/Effort/Category)
 
@@ -156,4 +156,4 @@
 
 ---
 
-*Per the status-report doctrine: section (f) is HARVEST input — it should land in TODO_LIST.md/ROADMAP.md rather than die in this timestamped file. Awaiting instructions.*
+_Per the status-report doctrine: section (f) is HARVEST input — it should land in TODO_LIST.md/ROADMAP.md rather than die in this timestamped file. Awaiting instructions._
