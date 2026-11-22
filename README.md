@@ -33,8 +33,10 @@ Then rename (the only mechanical step). Every place the template name lives:
    by default) + the package name, so `pname` renames the repository too. Set
    `container.registry` when the project's remote is not GitHub.
 4. `go mod tidy && go build ./...` — green by construction.
-5. **Prove it:** re-run the `grep -rl` from step 1 (nothing but README/history
-   should match) and check `grep -rn '<name>' flake.nix systemd/`.
+5. **Prove it:** re-run the `grep -rl` from step 1 — it must print nothing —
+   then `go build ./... && go test ./... -race -count=1`. Verified on a copy
+   of this commit: the rewrite leaves zero old-path matches and the suite
+   passes under the new module path.
 
 ## Install
 
@@ -128,6 +130,9 @@ generated against, the go floor, and the generated date. Per the fleet
 ritual, every preset/core-touching appkit train bumps the stamp and re-runs
 the dogfood probe (boot + graceful-stop). Do NOT hand-edit the pinned
 versions between stamps — bump via the ritual so drift stays loud.
+Posture-only changes (docs, CI, packaging) deliberately do not bump the
+stamp, so the `Generated` date tracks the last appkit train, not the last
+commit.
 
 ## License
 
