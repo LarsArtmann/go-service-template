@@ -27,7 +27,20 @@ go build ./...
 go test ./... -race -count=1
 golangci-lint run ./...        # config copied from the appkit fleet standard
 nix build                      # after filling vendorHash.nix with the real hash
+nix build .#app-image          # OCI image from Nix (nix2container)
 ```
+
+## OCI image (no Dockerfile, by policy)
+
+The image is assembled by the go-standard `container` option (nix2container,
+auto-wired by the composite flakeModule) directly from the flake — the
+Dockerfile was deleted because OCI images must come from Nix. Equivalent
+posture to the old Dockerfile: non-root `65532:65532`, cacert included,
+`app serve` entrypoint, `8080/tcp` exposed, content-hash tag. Outputs
+(Linux only): `packages.app-image`, `apps.app-image-load` (pipe into a local
+docker/podman), `apps.app-image-push` (skopeo to `ghcr.io/larsartmann/app`),
+`checks.container-structure`. The `Version` stamp rides the flake's `ldflags`
+(`-X .../internal/app.Version=${self.rev...}`), not a Docker build arg.
 
 ## Gotchas
 

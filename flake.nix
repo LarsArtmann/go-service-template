@@ -42,7 +42,9 @@
         ldflags = [
           "-s"
           "-w"
-          "-X github.com/example/go-service-template/internal/app.Version=${self.rev or self.dirtyRev or "dev"}"
+          "-X github.com/example/go-service-template/internal/app.Version=${
+            self.rev or self.dirtyRev or "dev"
+          }"
         ];
 
         # OCI image built from Nix (nix2container, auto-wired by the
