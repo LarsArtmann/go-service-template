@@ -5,14 +5,14 @@ in the appkit READMEs (this repo contains no framework code).
 
 ## Version stamp (drift control — bump via the ritual, not by hand)
 
-| Component        | Value                                    |
-| ---------------- | ---------------------------------------- |
-| Template source  | github.com/LarsArtmann/go-service-template |
-| Generated        | 2026-11-21                               |
-| go-appkit preset | v0.1.1 (core v0.12.0, httpx v0.2.0, cqrs v0.9.0, config v0.1.1) |
-| cmdguard         | v5.1.0                                   |
+| Component        | Value                                                                                                                                |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Template source  | github.com/LarsArtmann/go-service-template                                                                                           |
+| Generated        | 2026-11-21                                                                                                                           |
+| go-appkit preset | v0.1.1 (core v0.12.0, httpx v0.2.0, cqrs v0.9.0, config v0.1.1)                                                                      |
+| cmdguard         | v5.1.0                                                                                                                               |
 | templ (runtime)  | v0.3.1100 (the fleet-migrated pairing: templ-components v1.27.2 + go-health-dashboard v0.13.3; cmdguard v5.1.0 requires ≥ v0.3.1100) |
-| Go floor         | 1.27.4                                   |
+| Go floor         | 1.27.4                                                                                                                               |
 
 Refresh ritual: every preset/core-touching appkit train bumps this stamp and
 re-runs the dogfood probe (build, boot, `/healthz` + `/api/status` probe,

@@ -1,27 +1,18 @@
 version: "2"
-# Lint config copied from the go-appkit fleet standard (config module,
-# 2026-11-21); keep it in lockstep when the fleet config moves.
-# (reference implementation: flightrecorderhealth/.golangci.yml).
-#
-# Why module-local: the ROOT config's depguard allowlist is structurally
-# wrong for non-root modules (family deps like go-flightrecorder, go-sse,
-# templ-components, go-cqrs-lite are not in its allow list). Each module
-# lints itself with `cd <module> && golangci-lint run ./...`.
-#
-# Deliberate divergences from the root config:
-#   - depguard (deny-only): cqrs-htmx/setup/v4 must never be imported —
-#     setup consumes appkit, never the reverse (SUPERB v4 C3)
-#   - no arangolint / clickhouselint: no database driver code in this module
 run:
   timeout: 5m
-  go: "1.27.4"
+  go: "1.27"
+  build-tags:
+    - goexperiment.arenas
+    - goexperiment.goroutineleakprofile
+    - goexperiment.runtimesecret
+    - goexperiment.simd
   allow-parallel-runners: true
   allow-serial-runners: true
   issues-exit-code: 1
 output:
   formats: {}
 linters:
-  default: standard
   enable:
     - asasalint
     - asciicheck
@@ -131,24 +122,49 @@ linters:
     - zerologlint
   disable:
     - noinlineerr
+  default: standard
   settings:
+    cyclop:
+      max-complexity: 12
     depguard:
       rules:
         no-cqrs-htmx-setup:
           deny:
-            - pkg: github\.com/larsartmann/cqrs-htmx/setup/v4
-              desc: setup is NEVER a dependency of appkit — the direction is setup → appkit (SUPERB v4 C3)
-    cyclop:
-      max-complexity: 12
+            - desc: setup is NEVER a dependency of appkit — the direction is setup → appkit (SUPERB v4 C3)
+              pkg: github\.com/larsartmann/cqrs-htmx/setup/v4
+    exhaustruct_v5:
+      ignore-patterns:
+        - net/http.Client
+        - net/http.Server
+        - net/http.Request
+        - net/http.Response
+        - net/http.Transport
+        - net/http.Cookie
+        - net.TCPAddr
+        - net.Dialer
+        - log/slog.HandlerOptions
+        - sync.WaitGroup
+        - bytes.Buffer
+        - time.Ticker
+        - time.Timer
+        - os/exec.Cmd
     funlen:
       lines: 200
       statements: 100
     ginkgolinter:
       forbid-focus-container: true
       forbid-spec-pollution: true
+    gocognit:
+      min-complexity: 25
+    goconst:
+      ignore-tests: true
+      min-len: 4
+      min-occurrences: 5
     gocritic:
       disabled-checks:
         - ifElseChain
+    gocyclo:
+      min-complexity: 20
     gomoddirectives:
       replace-local: true
     gosec:
@@ -170,19 +186,14 @@ linters:
         - "1"
         - "2"
         - "100"
+    nestif:
+      min-complexity: 6
     revive:
       rules:
         - disabled: true
           name: exported
         - disabled: true
           name: package-comments
-    # align:false is deliberate: this module's public tag grammar mixes
-    # present/absent keys (required fields carry no default), where tagalign's
-    # align mode (collapse absent keys) and the golines formatter's
-    # realign-tags (pad absent keys) produce incompatible canonical forms.
-    # Sort order (default before env) stays enforced; spacing belongs to the
-    # formatter. Probed 2026-11-06: align:false accepts the golines form and
-    # still flags env-before-default.
     tagalign:
       align: false
     testifylint:
@@ -220,8 +231,6 @@ linters:
         - .WithMessage(
         - .WithMessagef(
         - .WithStack(
-        # go-error-family IS the wrapping layer — its constructors are the
-        # sanctioned terminal forms (v2.15.0 wrapcheck drift, 2026-11-07).
         - Newf(
         - NewRejection(
         - WrapInfrastructuref(
@@ -244,6 +253,14 @@ linters:
           - funlen
           - cyclop
           - testpackage
+          - forcetypeassert
+          - gosec
+          - errcheck
+          - wrapcheck
+          - ireturn
+          - recvcheck
+          - contextcheck
+          - exhaustive
       - path: _test\.go
         text: unused
         linters:
@@ -266,5 +283,5 @@ formatters:
     paths:
       - _templ\.go$
 issues:
-  max-issues-per-linter: 50
-  max-same-issues: 10
+  max-issues-per-linter: 0
+  max-same-issues: 0

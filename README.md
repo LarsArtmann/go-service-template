@@ -22,18 +22,18 @@ Then rename (the only mechanical step):
 
 ## What's inside
 
-| Path                | What it carries                                                                     |
-| ------------------- | ------------------------------------------------------------------------------------ |
-| `cmd/app/main.go`   | cmdguard v5 CLI: `serve` verb + free `version`/`doctor` (WithBatteries)             |
-| `internal/app/`     | Composition root: config.Load → preset.New → routes → Run. Whole file ~60 lines.   |
-| `internal/api/`     | httpx handler example (return-(T, error), classified no-leak errors)               |
-| `internal/events/`  | cqrs EventService skeleton — build-tag gated (`-tags events`), delete if CRUD      |
-| `views/`            | One templ page (generated `.go` committed — no templ install needed to build)      |
-| `flake.nix`         | go-nix-helpers go-standard: build + devShell + treefmt                              |
-| `.buildflow.yml`    | BuildFlow policy (GOWORK off)                                                       |
-| `.github/workflows/`| build/vet/test + golangci-lint                                                      |
-| `systemd/`          | `Type=notify` + `WatchdogSec` unit (pairs with the preset's sd_notify spine)        |
-| `Dockerfile`        | distroless non-root image                                                           |
+| Path                 | What it carries                                                                  |
+| -------------------- | -------------------------------------------------------------------------------- |
+| `cmd/app/main.go`    | cmdguard v5 CLI: `serve` verb + free `version`/`doctor` (WithBatteries)          |
+| `internal/app/`      | Composition root: config.Load → preset.New → routes → Run. Whole file ~60 lines. |
+| `internal/api/`      | httpx handler example (return-(T, error), classified no-leak errors)             |
+| `internal/events/`   | cqrs EventService skeleton — build-tag gated (`-tags events`), delete if CRUD    |
+| `views/`             | One templ page (generated `.go` committed — no templ install needed to build)    |
+| `flake.nix`          | go-nix-helpers go-standard: build + devShell + treefmt                           |
+| `.buildflow.yml`     | BuildFlow policy (GOWORK off)                                                    |
+| `.github/workflows/` | build/vet/test + golangci-lint                                                   |
+| `systemd/`           | `Type=notify` + `WatchdogSec` unit (pairs with the preset's sd_notify spine)     |
+| `Dockerfile`         | distroless non-root image                                                        |
 
 ## The framework surface you inherited
 
