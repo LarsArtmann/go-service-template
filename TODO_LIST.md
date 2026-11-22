@@ -1,10 +1,9 @@
 # TODO List
 
-> Short-term, actionable, bounded work for go-service-template. For long-term
-> ideas, see `ROADMAP.md`; for shipped changes, see [CHANGELOG.md](CHANGELOG.md)
-> and git history. Last docs-health sweep: 2026-11-22 (Dockerfile removed —
-> OCI images build from the flake via the go-standard `container` option;
-> no open items found).
+> Short-term, actionable, bounded work for go-service-template. For shipped
+> changes, see [CHANGELOG.md](CHANGELOG.md) and git history. Last docs-health
+> sweep: 2026-11-22 (Dockerfile removed — OCI images build from the flake via
+> the go-standard `container` option; no open items found).
 
 ## Status legend
 
