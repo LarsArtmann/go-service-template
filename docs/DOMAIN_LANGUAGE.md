@@ -39,17 +39,17 @@
 
 ## Build & release terms
 
-| Term             | Definition                                                                                                              | Where used in code                                        |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| Version stamp    | The build-time `internal/app.Version` value, injected via `ldflags` and served at `/version`                            | `internal/app/service.go:24-27`, `flake.nix:44-50`        |
-| Drift stamp      | The AGENTS.md table of pinned component versions and the Go floor; bumped only by the refresh ritual                    | `AGENTS.md` version stamp table                           |
-| Refresh ritual   | The required drill after an appkit train: bump the stamp and re-run the dogfood probe                                   | `AGENTS.md`, `CONTRIBUTING.md`                            |
-| Dogfood probe    | Exercising a scaffolded copy end-to-end: build, boot, probe `/healthz` + `/api/status` + `/version`, SIGTERM drain      | `CONTRIBUTING.md`; performed by this doc sweep            |
-| vendorHash       | The fixed-output hash of the Go module graph; a wrong value fails the first Nix build, which prints the right one       | `vendorHash.nix`, `flake.nix:37-39`                       |
-| app-image        | The OCI image built by the flake's `container` option (nix2container) — no Dockerfile involved                          | `flake.nix:52-61`; `.#app-image` outputs                  |
+| Term             | Definition                                                                                                              | Where used in code                                                 |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Version stamp    | The build-time `internal/app.Version` value, injected via `ldflags` and served at `/version`                            | `internal/app/service.go:24-27`, `flake.nix:45-51`                 |
+| Drift stamp      | The AGENTS.md table of pinned component versions and the Go floor; bumped only by the refresh ritual                    | `AGENTS.md` version stamp table                                    |
+| Refresh ritual   | The required drill after an appkit train: bump the stamp and re-run the dogfood probe                                   | `AGENTS.md`, `CONTRIBUTING.md`                                     |
+| Dogfood probe    | Exercising a scaffolded copy end-to-end: build, boot, probe `/healthz` + `/api/status` + `/version`, SIGTERM drain      | `CONTRIBUTING.md`; performed by this doc sweep                     |
+| vendorHash       | The fixed-output hash of the Go module graph; a wrong value fails the first Nix build, which prints the right one       | `vendorHash.nix`, `flake.nix:38-40`                                |
+| app-image        | The OCI image built by the flake's `container` option (nix2container) — no Dockerfile involved                          | `flake.nix:58-62`; `.#app-image` outputs                           |
 | Image posture    | The container facts the structure check asserts: non-root `65532:65532`, `/bin/app serve`, `8080/tcp`, cacert, hash tag | `flake.nix` container block; `checks.<system>.container-structure` |
-| Content-hash tag | The image tag is the store content hash, so identical inputs produce an identical tag                                   | `.#app-image`; reproducibility proof in `CHANGELOG.md`    |
-| Build-tag gate   | Compiling a package only under an explicit tag (`events`), so the default binary carries no weight for it               | `internal/events/events.go:1`                             |
+| Content-hash tag | The image tag is the store content hash, so identical inputs produce an identical tag                                   | `.#app-image`; reproducibility proof in `CHANGELOG.md`             |
+| Build-tag gate   | Compiling a package only under an explicit tag (`events`), so the default binary carries no weight for it               | `internal/events/events.go:1`                                      |
 
 ## Documentation terms
 

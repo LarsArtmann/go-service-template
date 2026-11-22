@@ -60,12 +60,12 @@ not?
 
 ## Packaging & deploy
 
-| Feature                          | Status               | Evidence                                                              | Notes                                                                         |
-| -------------------------------- | -------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Nix-built Go binary              | FULLY_FUNCTIONAL     | `flake.nix:27-50`; `result/bin/app` probed end-to-end                 | `internal/app.Version` stamped from `self.rev` via `ldflags`                  |
-| OCI image from the flake         | PARTIALLY_FUNCTIONAL | `flake.nix:57-61`; `.#app-image` + `.#checks.<system>.container-structure` green | Image never loaded/run — no container runtime on the dev machine (TODO row 1) |
-| Image publish (`app-image-push`) | PARTIALLY_FUNCTIONAL | go-standard module output (skopeo → `ghcr.io/larsartmann/app`)        | Never exercised; publish policy is an open owner decision                     |
-| systemd unit                     | PARTIALLY_FUNCTIONAL | `systemd/app.service`                                                 | Ships with hardening directives; never booted under systemd in this repo      |
+| Feature                          | Status               | Evidence                                                                         | Notes                                                                         |
+| -------------------------------- | -------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Nix-built Go binary              | FULLY_FUNCTIONAL     | `flake.nix:27-51`; `result/bin/app` probed end-to-end                            | `internal/app.Version` stamped from `self.rev` via `ldflags`                  |
+| OCI image from the flake         | PARTIALLY_FUNCTIONAL | `flake.nix:58-62`; `.#app-image` + `.#checks.<system>.container-structure` green | Image never loaded/run — no container runtime on the dev machine (TODO row 1) |
+| Image publish (`app-image-push`) | PARTIALLY_FUNCTIONAL | go-standard module output (skopeo → `ghcr.io/larsartmann/app`)                   | Never exercised; publish policy is an open owner decision                     |
+| systemd unit                     | PARTIALLY_FUNCTIONAL | `systemd/app.service`                                                            | Ships with hardening directives; never booted under systemd in this repo      |
 
 ## Event sourcing skeleton
 

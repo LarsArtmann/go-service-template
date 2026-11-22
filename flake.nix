@@ -54,7 +54,7 @@
         # composite module — no extra flake input): non-root 65532:65532,
         # cacert included, content-hash tag. Linux-only outputs:
         # packages.app-image, apps.app-image-load / app-image-push,
-        # checks.container-structure.
+        # checks.<system>.container-structure.
         container = {
           enable = true;
           cmd = [ "serve" ];
