@@ -14,6 +14,8 @@
     go-nix-helpers = {
       url = "github:LarsArtmann/go-nix-helpers";
       inputs.nixpkgs.follows = "nixpkgs";
+      # Keep one lock entry per upstream (flake.lock duplicate-pin WARN).
+      inputs.flake-parts.follows = "flake-parts";
     };
   };
 
