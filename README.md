@@ -13,13 +13,28 @@ build straight from the flake, no Dockerfile.
 git clone git@github.com:LarsArtmann/go-service-template.git <your-service> && cd <your-service>
 ```
 
-Then rename (the only mechanical step):
+Then rename (the only mechanical step). Every place the template name lives:
 
-1. **Module path:** `github.com/example/go-service-template` → your module
-   (`gofmt -w -r` is overkill; `grep -rl` + `sed -i` across `cmd/ internal/ views/`).
-2. **Names:** `internal/app` `Name`/`Short` consts, `systemd/app.service`,
-   `flake.nix` `pname`, the flake.nix `-X` flag.
-3. `go mod tidy && go build ./...` — green by construction.
+1. **Module path** — `go.mod` plus every import:
+
+   ```bash
+   grep -rl 'github.com/example/go-service-template' --exclude-dir=.git --exclude-dir=result . \
+     | xargs sed -i 's|github.com/example/go-service-template|github.com/you/your-service|g'
+   ```
+
+   That set is `go.mod`, `cmd/app/main.go`, `internal/app/service.go`,
+   `internal/api/routes_test.go`, `flake.nix` (the `ldflags -X` path) and
+   this README.
+2. **Names** — the `internal/app` `Name`/`Short` consts, the
+   `systemd/app.service` `Description` + `ExecStart`, the `flake.nix` `pname`
+   + `description`, and the `<name>` placeholders in `flake.nix` and
+   `systemd/app.service`.
+3. **Image name** — the OCI image is `container.registry` (`ghcr.io/larsartmann`
+   by default) + the package name, so `pname` renames the repository too. Set
+   `container.registry` when the project's remote is not GitHub.
+4. `go mod tidy && go build ./...` — green by construction.
+5. **Prove it:** re-run the `grep -rl` from step 1 (nothing but README/history
+   should match) and check `grep -rn '<name>' flake.nix systemd/`.
 
 ## Install
 
@@ -42,17 +57,25 @@ buildflow --build-mode dev  # the full gate: build, race tests, lint, nix, docs
 | `internal/events/`   | cqrs EventService skeleton — build-tag gated (`-tags events`), delete if CRUD    |
 | `views/`             | One templ page (generated `.go` committed — no templ install needed to build)    |
 | `flake.nix`          | go-nix-helpers go-standard: build + devShell + treefmt + OCI image               |
-| `.buildflow.yml`     | BuildFlow policy (GOWORK off)                                                    |
-| `.github/workflows/` | build/vet/test + golangci-lint                                                   |
+| `.buildflow.yml`     | BuildFlow policy (GOWORK off, GOTOOLCHAIN pinned to the go.mod floor)            |
+| `.github/workflows/` | build/vet/test + golangci-lint + `nix-image` (image build + structure check)     |
 | `systemd/`           | `Type=notify` + `WatchdogSec` unit (pairs with the preset's sd_notify spine)     |
+| `docs/`              | `DOMAIN_LANGUAGE.md` plus timestamped `status/` snapshots                        |
+| `FEATURES.md`        | Honest inventory: what works, what is partial, what is switched off              |
+| `TODO_LIST.md`       | Open work only; completed items move to `CHANGELOG.md`                           |
+| `ROADMAP.md`         | Long-term direction and raw ideas, not tasks                                     |
+| `CONTRIBUTING.md`    | Owner workflow + the dogfood contract every scaffold change must honour           |
+| `SECURITY.md`        | Private vulnerability reporting path                                             |
+| `LICENSE`            | PROPRIETARY (fleet posture)                                                      |
 
 ## The framework surface you inherited
 
-- `GET /healthz /readyz /startupz` + the real-time health dashboard (preset spine)
+- `GET /healthz /readyz /startupz` — the probes; the real-time dashboard at
+  `/health` owns them (preset spine)
 - `GET /version` + `appkit_build_info` metric (preset `Version` stamp)
 - Pretty classified 404/405 error pages (preset spine, opt-out `APPKIT_ERRORPAGES=off`)
-- Legs: `APPKIT_OTEL=on|off`, `APPKIT_REALTIME=on|off`, `APPKIT_SECURITY=none|standard|strict`
-  (frozen env grammar; explicit code wins)
+- Legs: `APPKIT_OTEL=on|off`, `APPKIT_REALTIME=on|off` (SSE hub at `/events`),
+  `APPKIT_SECURITY=none|standard|strict` (frozen env grammar; explicit code wins)
 - SIGINT/SIGTERM → full graceful drain with one grep-able log line per phase
 - sd_notify READY/STOPPING/watchdog when running under the systemd unit
 
@@ -79,6 +102,24 @@ Port note: the container's `ExposedPorts` is fixed at `8080/tcp` in
 `flake.nix`, while the app's listen address comes from `APP_ADDR`
 (default `:8080`). Keep `:8080` inside containers, or update
 `container.exposedPorts` alongside any `APP_ADDR` change.
+
+## Docs in this repo
+
+Each doc has one job, and a fact lives in exactly one of them:
+
+| File                      | Owns                                          |
+| ------------------------- | --------------------------------------------- |
+| `README.md`               | What this is, why, how to start (this file)    |
+| `AGENTS.md`               | Non-obvious context for AI sessions            |
+| `FEATURES.md`             | What ships + honest status per feature         |
+| `TODO_LIST.md`            | Open, bounded, short-term work                 |
+| `ROADMAP.md`              | Long-term direction, raw ideas                 |
+| `CHANGELOG.md`            | What changed, per date                         |
+| `docs/DOMAIN_LANGUAGE.md` | The archetype's vocabulary                     |
+| `docs/status/`            | Point-in-time reports (annotated, not edited)  |
+
+Run the docs gates with `docs-gates run .` (freshness, annotate, routing,
+cadence).
 
 ## Version stamp + refresh ritual (drift control)
 

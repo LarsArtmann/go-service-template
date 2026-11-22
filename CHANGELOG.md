@@ -6,6 +6,24 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- 2026-11-22 (docs-health audit): the doc set now covers every file the
+  fleet expects. New `FEATURES.md` (28-row honest inventory, each row with
+  code or probe evidence), new `ROADMAP.md` (long-term direction — this
+  reverses the earlier "the template keeps no roadmap" decision, which had
+  been pushing long-term fuel into a timestamped report), and new
+  `docs/DOMAIN_LANGUAGE.md` (the archetype's vocabulary, with the bounded
+  contexts: stamp, probe, gate, template, serve, status). `TODO_LIST.md` was
+  rebuilt as an open-only ranked table; the old "Closed" section is gone
+  because completed work belongs in this file. README's rename checklist was
+  wrong: it listed only `cmd/ internal/ views/`, omitting `go.mod` and the
+  `flake.nix` `ldflags` path, and said nothing about `pname` naming the image
+  repository. It now carries the `grep -rl | xargs sed` command and a proof
+  step. The README repo map gained `docs/`, the doc set, `CONTRIBUTING.md`,
+  `SECURITY.md`, `LICENSE`, and the `nix-image` CI job; the framework-surface
+  list now names the dashboard at `/health` and the SSE hub at `/events`.
+  AGENTS.md gained a docs map, the rename-coverage contract, the
+  absolute-`dprint.json` gotcha, the `.dockerignore` artifact note, and the
+  `docs-gates run .` command.
 - 2026-11-22: removed the Dockerfile — OCI images build from the flake
   (go-standard `container` option, nix2container). Same posture, no daemon:
   non-root `65532:65532`, `/bin/app serve`, `8080/tcp`, cacert included,
@@ -20,6 +38,13 @@ All notable changes to this project are documented in this file.
   `follows`. README gained image verify commands and the `APP_ADDR` vs
   `ExposedPorts` footgun note; AGENTS.md gained buildflow-first commands,
   systemd-vs-container deploy paths, and templ/treefmt gotchas.
+
+### Fixed
+
+- 2026-11-22 (docs-health audit): `SECURITY.md` claimed "Automated security
+  scanning runs in CI" while `ci.yml` carries no scanner. The claim is gone
+  and the gap is now TODO_LIST row 12 (gitleaks step). `.config/metadata.yaml`
+  `updated_at` bumped to the last change date.
 
 ### Added
 

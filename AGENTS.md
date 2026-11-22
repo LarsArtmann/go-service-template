@@ -3,6 +3,21 @@
 Production posture: go-appkit preset spine + cmdguard CLI. Module truth lives
 in the appkit READMEs (this repo contains no framework code).
 
+## Docs map — each doc owns one thing
+
+| File                      | Owns                                                    |
+| ------------------------- | ------------------------------------------------------- |
+| `README.md`               | Why the archetype exists, install, rename, how to verify |
+| `FEATURES.md`             | What ships, with honest per-feature status + evidence   |
+| `TODO_LIST.md`            | Open bounded work only (never completed items)          |
+| `ROADMAP.md`              | Long-term direction and raw ideas, not tasks            |
+| `CHANGELOG.md`            | Dated history of what changed                           |
+| `docs/DOMAIN_LANGUAGE.md` | The archetype's vocabulary (verify terms against code)   |
+| `docs/status/`            | Timestamped reports — annotate, never rewrite           |
+
+Doctrine: a completed TODO leaves `TODO_LIST.md` for `CHANGELOG.md`; a fact
+lives in exactly one doc; `docs-gates run .` is the gate over all of it.
+
 ## Version stamp (drift control — bump via the ritual, not by hand)
 
 | Component        | Value                                                                                                                                |
@@ -25,6 +40,7 @@ shared module.
 ```bash
 buildflow --build-mode dev     # the gate: build, race tests, golangci-lint, nix, treefmt, docs-gates
 buildflow doctor               # environment/binary triage
+docs-gates run .               # the docs battery alone (freshness, audit-all, annotate, routing, cadence)
 nix build .#app-image          # OCI image + structure check
 
 # raw fallbacks (what the gate wraps):
@@ -33,6 +49,12 @@ go test ./... -race -count=1
 golangci-lint run ./...        # config copied from the appkit fleet standard
 nix build                      # vendorHash.nix is filled; first bump prints the new hash
 ```
+
+Verified 2026-11-22 on the Nix-built binary (`result/bin/app`): boot via
+`APP_ADDR=:18089`, `/healthz` + `/readyz` + `/startupz` + `/api/status` +
+`/version` + `/health` + `/` all 200, `/nope` 404, five-phase SIGTERM drain,
+`version` prints the git rev, `doctor` 2/2. There is no container runtime on
+the dev machine — the IMAGE itself has never been booted (TODO_LIST row 1).
 
 ## OCI image (no Dockerfile, by policy)
 
@@ -55,6 +77,20 @@ they are not layered.
 
 ## Gotchas
 
+- **The rename is not confined to Go files.** `go.mod`, the `flake.nix`
+  `ldflags -X` path, and `pname` (which names the image repository:
+  `container.registry` + package name) all carry the template identity. The
+  README's rename section has the `grep -rl | xargs sed` command and the
+  proof step; run the proof, not just the rename.
+- **`dprint.json` names absolute plugin paths**
+  (`/home/lars/.local/state/buildflow/dprint-plugins/...`) whenever
+  `BUILDFLOW_DPRINT_PLUGINS` is set, which is the owner machine's default.
+  BuildFlow regenerates that form, so hand-editing it is whack-a-mole; an
+  adopter on another machine resolves the committed absolute paths to nothing.
+  Tracked as TODO_LIST row 10.
+- `.dockerignore` is a BuildFlow regeneration artifact kept despite the
+  `hasDockerfile` gate. It is inert (no Dockerfile by policy); do not treat
+  its presence as Docker posture. Upstream investigation: TODO_LIST row 7.
 - `internal/events/` is behind the `events` build tag; `go mod tidy` keeps
   the cqrs require alive because tidy considers all build configurations.
 - `views/*_templ.go` files are COMMITTED so plain `go build` works without a

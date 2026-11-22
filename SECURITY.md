@@ -32,9 +32,15 @@ Please do **not** open public issues for security problems. Report privately ins
 
 ## Security Practices
 
-- All changes are code-reviewed before merge
-- Automated security scanning runs in CI
-- Dependencies are kept up to date
+- Every change passes the owner's gate (`buildflow --build-mode dev`: build,
+  race tests, golangci-lint, Nix build, formatter, docs gates). This is a
+  solo-owner archetype — there is no external review step, and the policy
+  says so rather than implying one.
+- Dependency updates ride Dependabot (gomod + GitHub Actions) once the repo
+  is pushed; Nix flake inputs ride the appkit train ritual.
+- No secret is committed; `.gitignore` carries the fleet's secret patterns
+  (`*.pem`, `*.key`, `.env*`). A CI secret scanner is planned, not present —
+  tracked in `TODO_LIST.md` row 12 rather than claimed here.
 
 ---
 
