@@ -53,18 +53,20 @@
 | Gate hygiene                     | dev mode green                                                             | `nix-hash-fix` WARN "failed 14/14 times (100%)" never investigated; buildflow binary staleness WARN never checked via doctor            | S–M                         |
 | CI pin bumps (tool-made)         | `ci.yml` diff read, pins are real SHA-pinned actions with version comments | zero CI execution evidence (no push); also `728228f`'s golangci-lint v2 install step untouched but not re-validated against setup-go v7 | S (push/observe)            |
 
+→ Row-level follow-up 2026-11-22: the buildflow binary was rebuilt/reinstalled (769b3a4) and `nix-hash-fix` no longer appears in dev runs; `nix-checker`'s `goTarballHash` hint was applied (`goTarballHash.nix`).
+
 ## c) NOT STARTED
 
 - Image publish CI (ghcr or otherwise) — no workflow builds or pushes `app-image`; the old Dockerfile had none either, so this is posture completion, not regression.
 - Image boot-smoke as an automated flake check (e.g. `checks.image-smoke` via podman).
-- ROADMAP.md — does not exist; my first TODO_LIST draft pointed at it (fixed to remove the pointer during report prep).
+- ROADMAP.md — does not exist; my first TODO_LIST draft pointed at it (fixed to remove the pointer during report prep). → created 2026-11-22 in the follow-up docs-health audit (the "template keeps no roadmap" decision was reversed; see ROADMAP.md).
 - Multi-arch (aarch64/linux-arm64) image — unexamined.
-- erraudit findings in `internal/app/service.go` (3 warnings: bare `error` return on `Serve`, two `fmt.Errorf` where the project enforces samber/oops) — pre-existing, out of session scope, untouched.
-- go-structure-linter repo-shape files: CONTRIBUTING.md, .editorconfig, .gitattributes, LICENSE (README claims PROPRIETARY but no LICENSE file exists), README installation section.
+- erraudit findings in `internal/app/service.go` (3 warnings: bare `error` return on `Serve`, two `fmt.Errorf` where the project enforces samber/oops) — pre-existing, out of session scope, untouched. → re-run 2026-11-22: 0 findings; samber/oops is not a dependency here (the lint config explicitly allows `fmt.Errorf`), so the original reading did not reproduce.
+- go-structure-linter repo-shape files: CONTRIBUTING.md, .editorconfig, .gitattributes, LICENSE (README claims PROPRIETARY but no LICENSE file exists), README installation section. → all five exist as of 2026-11-22 (follow-up session), and README gained its Install section.
 - go-version floor policy question: `go.mod:3` declares `go 1.27.4` (patch-pinned); `go-version-auto-configure` warns floors should be major.minor-only — direct tension with the fleet's Go-floor drift-control ritual (AGENTS stamp + flake tarball pin 1.27.4). Needs a policy call, not a silent fix.
-- flake.lock duplicate pin cleanup: `flake-parts` locked twice (`flake-parts` + `go-nix-helpers/flake-parts`, same rev) — WARN only.
+- flake.lock duplicate pin cleanup: `flake-parts` locked twice (`flake-parts` + `go-nix-helpers/flake-parts`, same rev) — WARN only. → deduped 2026-11-22 via `inputs.flake-parts.follows = "flake-parts"`; the doctor WARN is clear.
 - Full-mode gate (`--build-mode full` with coverage) — only dev mode was run.
-- docs-health HARVEST of this report's section (f) into TODO_LIST.md.
+- docs-health HARVEST of this report's section (f) into TODO_LIST.md. → done 2026-11-22: all 50 §f items routed (TODO_LIST rows 1-15, ROADMAP themes 1-5, CHANGELOG entries, or an explicit non-goal).
 
 ## d) TOTALLY FUCKED UP
 
