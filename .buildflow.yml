@@ -5,3 +5,8 @@ env:
   # must do the same (workspace-less single module here, but keep the
   # convention so a future multi-module layout inherits it).
   GOWORK: "off"
+  # The go.mod floor (1.27.4) is ABOVE BuildFlow's auto-derived fleet floor
+  # (1.27.3, raised 2026-10-11) — pin explicitly like pim-sync; caller-wins
+  # still applies (an exported GOTOOLCHAIN preempts this). Bump together
+  # with go.mod on every appkit floor train.
+  GOTOOLCHAIN: "go1.27.4"

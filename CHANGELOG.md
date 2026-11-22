@@ -4,11 +4,20 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- 2026-11-22: removed the Dockerfile — OCI images build from the flake
+  (go-standard `container` option, nix2container). Same posture, no daemon:
+  non-root `65532:65532`, `/bin/app serve`, `8080/tcp`, cacert included,
+  content-hash tag. Outputs: `app-image`, `app-image-load`/`app-image-push`,
+  `checks.container-structure`. The version stamp moved from the Docker
+  build arg into the flake's `ldflags` (`internal/app.Version`).
+
 ### Added
 
 - Initial scaffold from go-service-template (generated 2026-11-21): cmdguard
   `serve` CLI, preset spine, httpx example route, templ page, cqrs stub
-  (`-tags events`), flake/BuildFlow/CI/systemd/Dockerfile posture.
+  (`-tags events`), flake/BuildFlow/CI/systemd posture.
 
 ### Dogfood probe (2026-11-21, recorded friction)
 
