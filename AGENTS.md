@@ -97,6 +97,10 @@ they are not layered.
 - `.dockerignore` is a BuildFlow regeneration artifact kept despite the
   `hasDockerfile` gate. It is inert (no Dockerfile by policy); do not treat
   its presence as Docker posture. Upstream investigation: TODO_LIST row 7.
+- **`nix-checker` warns "goTarballHash is inlined in goTarballHash.nix"** —
+  a self-referential false positive: the hash IS in that file because the
+  checker asked for it to move out of `flake.nix`. Do not "fix" it again by
+  extracting a third file.
 - `internal/events/` is behind the `events` build tag; `go mod tidy` keeps
   the cqrs require alive because tidy considers all build configurations.
 - `views/*_templ.go` files are COMMITTED so plain `go build` works without a
