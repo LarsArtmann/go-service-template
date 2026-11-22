@@ -12,9 +12,20 @@ All notable changes to this project are documented in this file.
   content-hash tag. Outputs: `app-image`, `app-image-load`/`app-image-push`,
   `checks.container-structure`. The version stamp moved from the Docker
   build arg into the flake's `ldflags` (`internal/app.Version`).
+- 2026-11-22 (verification loop closed): Nix-built binary dogfood probe
+  passed (boot, `/healthz`, `/api/status`, `/version` reporting the git rev,
+  full five-phase SIGTERM drain); `.#app-image` proven bit-reproducible;
+  image posture verified in the image JSON (user, ports, cacert env,
+  entrypoint). `flake.lock` duplicate `flake-parts` pin deduped via
+  `follows`. README gained image verify commands and the `APP_ADDR` vs
+  `ExposedPorts` footgun note; AGENTS.md gained buildflow-first commands,
+  systemd-vs-container deploy paths, and templ/treefmt gotchas.
 
 ### Added
 
+- 2026-11-22: `nix-image` CI job (builds `.#app-image` +
+  `.#checks.container-structure` on every push/PR) and the fleet-standard
+  proprietary LICENSE file.
 - Initial scaffold from go-service-template (generated 2026-11-21): cmdguard
   `serve` CLI, preset spine, httpx example route, templ page, cqrs stub
   (`-tags events`), flake/BuildFlow/CI/systemd posture.

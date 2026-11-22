@@ -23,11 +23,15 @@ shared module.
 ## Build & verify
 
 ```bash
+buildflow --build-mode dev     # the gate: build, race tests, golangci-lint, nix, treefmt, docs-gates
+buildflow doctor               # environment/binary triage
+nix build .#app-image          # OCI image + structure check
+
+# raw fallbacks (what the gate wraps):
 go build ./...
 go test ./... -race -count=1
 golangci-lint run ./...        # config copied from the appkit fleet standard
-nix build                      # after filling vendorHash.nix with the real hash
-nix build .#app-image          # OCI image from Nix (nix2container)
+nix build                      # vendorHash.nix is filled; first bump prints the new hash
 ```
 
 ## OCI image (no Dockerfile, by policy)
@@ -42,11 +46,23 @@ docker/podman), `apps.app-image-push` (skopeo to `ghcr.io/larsartmann/app`),
 `checks.container-structure`. The `Version` stamp rides the flake's `ldflags`
 (`-X .../internal/app.Version=${self.rev...}`), not a Docker build arg.
 
+**systemd vs container deploy paths.** `systemd/app.service` (`Type=notify` +
+watchdog) pairs with the preset's sd_notify spine for bare-metal/systemd
+hosts. Inside the OCI container there is no systemd — the preset detects the
+missing `NOTIFY_SOCKET` and the sd_notify calls degrade to no-ops, so the
+same binary runs in both without flags. Pick one path per deploy target;
+they are not layered.
+
 ## Gotchas
 
 - `internal/events/` is behind the `events` build tag; `go mod tidy` keeps
   the cqrs require alive because tidy considers all build configurations.
 - `views/*_templ.go` files are COMMITTED so plain `go build` works without a
-  templ install; regenerate with `templ generate` after editing `.templ` files.
+  templ install; regenerate with `templ generate` after editing `.templ`
+  files, then run the formatter (`buildflow --fix`) — regen output can
+  re-drift from the treefmt-fixed committed copy.
 - Signal handling is the framework's (core `Run`); do not add a second
   NotifyContext.
+- Probe boot on a non-8080 port (`APP_ADDR=:18089`) — dev machines commonly
+  have other services squatting 8080; the app classifies the bind failure
+  as `[Infrastructure:server.listen_failed]`.
