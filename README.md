@@ -54,6 +54,21 @@ curl -s localhost:8080/api/status && curl -s localhost:8080/healthz
 kill -TERM %1                                     # watch the drain phase lines
 ```
 
+The OCI image (built from the flake, no Dockerfile):
+
+```bash
+nix build .#app-image                             # image + structure check
+nix run .#app-image-load | docker load            # or podman load
+docker images                                     # tag = the store-path content hash
+docker run --rm -p 8080:8080 <tag-from-above>
+curl -s localhost:8080/version                    # the git rev, stamped via flake ldflags
+```
+
+Port note: the container's `ExposedPorts` is fixed at `8080/tcp` in
+`flake.nix`, while the app's listen address comes from `APP_ADDR`
+(default `:8080`). Keep `:8080` inside containers, or update
+`container.exposedPorts` alongside any `APP_ADDR` change.
+
 ## Version stamp + refresh ritual (drift control)
 
 `AGENTS.md` carries the stamp block: the appkit pins this template was

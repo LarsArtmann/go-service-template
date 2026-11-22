@@ -18,7 +18,7 @@
 
 **NOT verified here (and why):**
 
-- **Image runtime boot** — never `image-load`ed into docker/podman, never probed `/healthz`, never SIGTERM-drained inside the container. Only the config JSON + structure check prove the image shape, not behavior.
+- **Image runtime boot** — never image-loaded (`nix run .#app-image-load`), never probed `/healthz`, never SIGTERM-drained inside the container. Only the config JSON + structure check prove the image shape, not behavior.
 - **`/version` stamp end-to-end** — ldflags config verified by successful build; never confirmed the binary inside the image reports the git rev instead of `"dev"`.
 - **CI after action pin bumps** — `buildflow --fix` rewrote `ci.yml` (checkout v4→v7.0.1, setup-go v5→v7.1.0, new SHAs); no push, so no CI run observed.
 - **Which process created `.dockerignore`** — timing matches my `buildflow --fix`, but the upstream gate (`hasDockerfile`) should have blocked it; root cause unresolved.
