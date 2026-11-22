@@ -51,6 +51,8 @@ proves the item is still open — every row was checked this sweep.
 - **Closed this sweep** (evidence in [CHANGELOG.md](CHANGELOG.md)):
   LICENSE/README/CONTRIBUTING/editorconfig/gitattributes gaps, flake.lock
   dedupe, image reproducibility + posture, version-stamp end-to-end, the
-  `nix-image` CI job, `APP_ADDR`-vs-`ExposedPorts` documentation, dependabot
-  ecosystem coverage, erraudit findings (0 violations; samber/oops is not a
-  dependency), and the docs-gates annotate repair.
+  `nix-image` CI job (attribute path corrected), `APP_ADDR`-vs-`ExposedPorts`
+  documentation, dependabot ecosystem coverage, erraudit findings (0
+  violations; samber/oops is not a dependency), the full-mode gate (60/60;
+  `internal/api` at 100% statement coverage), `goTarballHash` extraction, and
+  the docs-gates annotate repair.

@@ -75,17 +75,18 @@ not?
 
 ## Automation & quality
 
-| Feature                                   | Status           | Evidence                                                                     | Notes                                                                         |
-| ----------------------------------------- | ---------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| CI: build / vet / race-test               | DISABLED         | `.github/workflows/ci.yml:12-28`                                             | Zero runs observed — nothing pushed since the action pins landed (TODO row 4) |
-| CI: golangci-lint (v2 via `go install`)   | DISABLED         | `.github/workflows/ci.yml:30-45`; local run: `0 issues`                      | `golangci-lint-action` v6 cannot run a v2 binary, hence `go install`          |
-| CI: `nix-image` (image + structure check) | DISABLED         | `.github/workflows/ci.yml:47-65`                                             | Same push blocker; the same commands pass locally                             |
-| Dependabot (gomod + github-actions)       | DISABLED         | `.github/dependabot.yml`                                                     | Config-only until the repo is pushed; flake inputs ride the appkit train      |
-| docs-gates battery                        | FULLY_FUNCTIONAL | `docs-gates run .` → PASS (freshness, audit-all, annotate, routing, cadence) | The ritual that keeps this doc set honest                                     |
-| golangci-lint fleet config                | FULLY_FUNCTIONAL | `.golangci.yml`; `golangci-lint run ./...` → `0 issues`                      | Copied from the appkit fleet standard                                         |
-| Route tests                               | FULLY_FUNCTIONAL | `internal/api/routes_test.go` (2 tests, race-clean)                          | Covers the JSON route and the unmatched-path fall-through                     |
+| Feature                                           | Status           | Evidence                                                                     | Notes                                                                                                                                                |
+| ------------------------------------------------- | ---------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CI: build / vet / race-test                       | DISABLED         | `.github/workflows/ci.yml:12-28`                                             | Zero runs observed — nothing pushed since the action pins landed (TODO row 4)                                                                        |
+| CI: golangci-lint (v2 via `go install`)           | DISABLED         | `.github/workflows/ci.yml:30-45`; local run: `0 issues`                      | `golangci-lint-action` v6 cannot run a v2 binary, hence `go install`                                                                                 |
+| CI: `nix-image` (image + structure check)         | DISABLED         | `.github/workflows/ci.yml:47-65`                                             | Same push blocker; the same commands pass locally                                                                                                    |
+| Dependabot (gomod + github-actions)               | DISABLED         | `.github/dependabot.yml`                                                     | Config-only until the repo is pushed; flake inputs ride the appkit train                                                                             |
+| docs-gates battery                                | FULLY_FUNCTIONAL | `docs-gates run .` → PASS (freshness, audit-all, annotate, routing, cadence) | The ritual that keeps this doc set honest                                                                                                            |
+| golangci-lint fleet config                        | FULLY_FUNCTIONAL | `.golangci.yml`; `golangci-lint run ./...` → `0 issues`                      | Copied from the appkit fleet standard                                                                                                                |
+| Route tests                                       | FULLY_FUNCTIONAL | `internal/api/routes_test.go` (2 tests, race-clean)                          | Covers the JSON route and the unmatched-path fall-through; 100% statement coverage in `internal/api`, none yet in `cmd/app`, `internal/app`, `views` |
+| Full quality gate (`buildflow --build-mode full`) | FULLY_FUNCTIONAL | 60 steps succeeded, 0 failed (2026-11-22)                                    | The real gate; dev mode is a subset. Advisory findings are env/tool noise, not failures                                                              |
 
-**Row count:** 28 rows — 16 `FULLY_FUNCTIONAL`, 3 `PARTIALLY_FUNCTIONAL`,
+**Row count:** 29 rows — 17 `FULLY_FUNCTIONAL`, 3 `PARTIALLY_FUNCTIONAL`,
 0 `BROKEN`, 9 `DISABLED`, 0 `PLANNED`.
 
 ## Deliberately not here

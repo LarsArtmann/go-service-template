@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- 2026-11-22 (docs-health audit): `buildflow --build-mode full` was run for
+  the first time (the dev lane had masked it): 60 steps succeeded, 0 failed,
+  26 advisory findings (nixpkgs CVE feed, `go-humanize` availability, the
+  self-referential `goTarballHash` hint). Coverage is honest rather than
+  flattering — `internal/api` is at 100% of statements, while `cmd/app`,
+  `internal/app` and `views` carry no tests at all.
 - 2026-11-22 (docs-health audit): the doc set now covers every file the
   fleet expects. New `FEATURES.md` (28-row honest inventory, each row with
   code or probe evidence), new `ROADMAP.md` (long-term direction — this
