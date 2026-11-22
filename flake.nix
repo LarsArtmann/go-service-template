@@ -18,7 +18,7 @@
   };
 
   outputs =
-    inputs@{ flake-parts, ... }:
+    inputs@{ self, flake-parts, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [ inputs.go-nix-helpers.flakeModules.go-standard ];
 
@@ -36,6 +36,25 @@
         # vendorHash.nix.
         vendorHash = import ./vendorHash.nix;
         subPackages = [ "./cmd/app" ];
+
+        # Stamp internal/app.Version (read by /version + appkit_build_info)
+        # with the git revision — the old Dockerfile -X flag, now here.
+        ldflags = [
+          "-s"
+          "-w"
+          "-X github.com/example/go-service-template/internal/app.Version=${self.rev or self.dirtyRev or "dev"}"
+        ];
+
+        # OCI image built from Nix (nix2container, auto-wired by the
+        # composite module — no extra flake input): non-root 65532:65532,
+        # cacert included, content-hash tag. Linux-only outputs:
+        # packages.app-image, apps.app-image-load / app-image-push,
+        # checks.container-structure.
+        container = {
+          enable = true;
+          cmd = [ "serve" ];
+          exposedPorts = [ "8080/tcp" ];
+        };
       };
     };
 }

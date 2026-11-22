@@ -4,7 +4,8 @@ The fleet's service archetype: clone, rename, ship. Scaffolds everything
 AROUND the code so a new service's first hour is one clone — the go-appkit
 preset spine (graceful drain, health + dashboard, error pages, sd_notify,
 env-switched otel/security/realtime legs) pre-wired into a cmdguard CLI,
-with the fleet's nix/BuildFlow/CI/systemd/Docker posture included.
+with the fleet's nix/BuildFlow/CI/systemd posture included — OCI images
+build straight from the flake, no Dockerfile.
 
 ## Start (one command)
 
@@ -17,7 +18,7 @@ Then rename (the only mechanical step):
 1. **Module path:** `github.com/example/go-service-template` → your module
    (`gofmt -w -r` is overkill; `grep -rl` + `sed -i` across `cmd/ internal/ views/`).
 2. **Names:** `internal/app` `Name`/`Short` consts, `systemd/app.service`,
-   `flake.nix` `pname`, the Dockerfile `-X` flag.
+   `flake.nix` `pname`, the flake.nix `-X` flag.
 3. `go mod tidy && go build ./...` — green by construction.
 
 ## What's inside
@@ -29,11 +30,10 @@ Then rename (the only mechanical step):
 | `internal/api/`      | httpx handler example (return-(T, error), classified no-leak errors)             |
 | `internal/events/`   | cqrs EventService skeleton — build-tag gated (`-tags events`), delete if CRUD    |
 | `views/`             | One templ page (generated `.go` committed — no templ install needed to build)    |
-| `flake.nix`          | go-nix-helpers go-standard: build + devShell + treefmt                           |
+| `flake.nix`          | go-nix-helpers go-standard: build + devShell + treefmt + OCI image               |
 | `.buildflow.yml`     | BuildFlow policy (GOWORK off)                                                    |
 | `.github/workflows/` | build/vet/test + golangci-lint                                                   |
 | `systemd/`           | `Type=notify` + `WatchdogSec` unit (pairs with the preset's sd_notify spine)     |
-| `Dockerfile`         | distroless non-root image                                                        |
 
 ## The framework surface you inherited
 
