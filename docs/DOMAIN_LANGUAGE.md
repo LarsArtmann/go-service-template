@@ -8,26 +8,26 @@
 
 ## Core terms
 
-| Term             | Definition                                                                                                                        | Where used in code                                                 |
+| Term             | Definition                                                                                                                        | Where used (code or doc)                                           |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | Archetype        | This repo: the starting point a service is generated from, never a shared dependency                                              | `README.md:1-8`, `.config/metadata.yaml`                           |
 | Adopter          | The service that clones this repo and renames it; it re-clones on refresh instead of merging                                      | `AGENTS.md` (refresh ritual), `CONTRIBUTING.md`                    |
 | Scaffold         | The mechanical act of turning the archetype into an adopter (clone + rename + tidy)                                               | `internal/app/service.go:17-18`, `README.md`                       |
 | Preset           | `go-appkit/preset`: the one-call composition that boots a service with the spine plus legs                                        | `internal/app/service.go:14,48` (`appkitpreset.New`)               |
 | Spine            | The always-on part of the preset: lifecycle, middleware, health + dashboard, error pages, sd_notify, version stamp                | `README.md:71-80`, preset README "What joins the service"          |
-| Leg              | An opt-in preset capability switched by a frozen env var (otel, realtime, security, error pages)                                  | `internal/app/service.go:48` (`//nolint:... legs stay env-driven`) |
+| Leg              | An opt-in preset capability switched by a frozen env var (otel, realtime, security); error pages are spine with an opt-out        | `internal/app/service.go:48` (`//nolint:... legs stay env-driven`) |
 | Env grammar      | The frozen set of preset switches and their accepted values; invalid values fail fast at `preset.New`                             | preset README grammar table; `APPKIT_*`                            |
 | Composition root | The one function that wires config → preset → routes → Run; must stay small                                                       | `internal/app/service.go:43-65` (`Serve`)                          |
 | Config module    | `go-appkit/config`: struct-tag config with precedence flag > env > file > default, one `Rejection` listing every bad field        | `internal/app/service.go:31-41` (`config.Load`)                    |
 | Rejection        | The error family used for caller-fault boot failures (bad env value, missing origins); distinguishable from infrastructure faults | `internal/app/service.go:37` comment                               |
 | Classified error | An error carrying an error-family + code, so logs and exit codes stay machine-readable                                            | `internal/api/routes.go:1-3` comment                               |
 | No-leak contract | The handler/error contract that renders a classified error without exposing internals                                             | `internal/api/routes.go:2-3`; `httpx.ResultHandler`                |
-| Subcommand       | A cmdguard verb (`serve`, `version`, `doctor`)                                                                                    | `cmd/app/main.go:31-50`                                            |
+| Subcommand       | A cmdguard verb (`serve`, `version`, `doctor`)                                                                                    | `cmd/app/main.go:31-52`                                            |
 | Batteries        | cmdguard's `WithBatteries()`: the free `version` + `doctor` verbs and machine-readable error hints                                | `cmd/app/main.go:52`                                               |
 
 ## Lifecycle terms
 
-| Term           | Definition                                                                                                       | Where used in code                                            |
+| Term           | Definition                                                                                                       | Where used (code or doc)                                      |
 | -------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
 | Graceful drain | The shutdown sequence that stops new traffic first, then lets in-flight requests finish                          | `internal/app/service.go:43-46` comment; preset `Run`         |
 | Drain phase    | One logged stage of the drain: `ready_flip` → `drain_hooks` → `drain_wait` → `listener_close` → `shutdown_hooks` | probe output (`shutdown phase complete phase=…`), appkit core |
@@ -39,7 +39,7 @@
 
 ## Build & release terms
 
-| Term             | Definition                                                                                                              | Where used in code                                                 |
+| Term             | Definition                                                                                                              | Where used (code or doc)                                           |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | Version stamp    | The build-time `internal/app.Version` value, injected via `ldflags` and served at `/version`                            | `internal/app/service.go:24-27`, `flake.nix:45-51`                 |
 | Drift stamp      | The AGENTS.md table of pinned component versions and the Go floor; bumped only by the refresh ritual                    | `AGENTS.md` version stamp table                                    |
@@ -53,7 +53,7 @@
 
 ## Documentation terms
 
-| Term           | Definition                                                                                                             | Where used in code / docs          |
+| Term           | Definition                                                                                                             | Where used (code or doc)           |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
 | Living doc     | A doc rewritten in place as reality changes (README, AGENTS, FEATURES, TODO_LIST, ROADMAP, DOMAIN_LANGUAGE, CHANGELOG) | this file, `docs-health` skill     |
 | Snapshot       | A point-in-time report under `docs/status/`; annotated, never rewritten                                                | `docs/status/2026-11-22_19-43_…md` |

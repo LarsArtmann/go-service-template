@@ -24,19 +24,14 @@ file.
 ### 1. OCI artifact lifecycle
 
 Direction: an image is a first-class release artifact — built hermetically,
-booted in CI, published, signed, and attested, with no Docker daemon anywhere
-in the path.
+published, signed, and attested, with no Docker daemon anywhere in the path.
+The near-term pieces (boot-smoke, publish wiring) are already bounded in
+[TODO_LIST.md](TODO_LIST.md) rows 1 and 5; what remains here is direction.
 
 Raw ideas:
 
 - Multi-arch images (aarch64 alongside x86_64) so adopters targeting ARM
   hosts do not fork the flake.
-- Boot-smoke as a standing check: load the image, run it, probe `/healthz` and
-  `/api/status`, SIGTERM it, assert the drain lines. Belongs in
-  `checks.image-smoke`, so the proof travels with the flake.
-- Publish automation: registry push from CI versus a manual
-  `nix run .#app-image-push`. Owner policy — it decides whether CI carries
-  registry credentials.
 - Image signing (cosign) and SBOM attestation, ideally produced by the same
   flake output that builds the image.
 - Layer sharing and cache behavior between sibling fleet images — nix2container
@@ -45,13 +40,11 @@ Raw ideas:
 ### 2. Deploy story
 
 Direction: one blessed deploy path per service, documented as a decision, not
-inferred from a unit file plus a container.
+inferred from a unit file plus a container. The ADR that records the Nix-OCI
+decision is TODO_LIST row 11; what follows it is direction.
 
 Raw ideas:
 
-- ADR: "OCI images from Nix, no Dockerfile" — the decision, the rejected
-  alternatives (Dockerfile, kaniko, hand-rolled tarball), and what would
-  reopen it.
 - systemd-versus-container: when a fleet service picks the unit, when it picks
   the image, and how the sd_notify no-op inside containers is explained to an
   operator.
@@ -60,16 +53,14 @@ Raw ideas:
 ### 3. Template adoption ergonomics
 
 Direction: the rename step is the only manual work — and it should be
-impossible to do half of it.
+impossible to do half of it. The portable-`dprint.json` decision is TODO_LIST
+row 10; the ideas below are the larger shape of the problem.
 
 Raw ideas:
 
 - A `rename` helper (script or `go run` tool) that rewrites module path,
   `Name`/`Short`, `pname`, ldflags, systemd `ExecStart`, and README title in
   one pass, then proves it with a `grep` that must come back empty.
-- Portable formatting: `dprint.json` currently names absolute
-  `/home/lars/.local/state/...` plugin paths (a `BUILDFLOW_DPRINT_PLUGINS`
-  artifact) — adopters on other machines cannot resolve them.
 - Hermetic dependency sourcing: prepared-source (`deps`) instead of the
   committed `vendorHash.nix`, if the module's story matures.
 - An adopter smoke script: clone → rename → build → boot → probe, runnable by
@@ -78,7 +69,8 @@ Raw ideas:
 ### 4. Fleet posture propagation
 
 Direction: a posture change made here should be observable fleet-wide, not
-rediscovered service by service.
+rediscovered service by service. The positive `no-dockerfile` gate is TODO_LIST
+row 8; the rest is fleet-level direction.
 
 Raw ideas:
 
@@ -86,15 +78,13 @@ Raw ideas:
   migration, so the posture actually lands everywhere.
 - Run BuildFlow itself in CI (fleet-standard gate) rather than a subset of
   hand-wired steps.
-- A positive `no-dockerfile` gate upstream: fail the build when a Dockerfile
-  appears, instead of only declining to generate Docker hygiene files.
 - Template versioning: how an adopter learns that the archetype moved (the
   refresh ritual says re-clone, but nothing announces a new commit).
 
 ### 5. Observability defaults for adopters
 
-Direction: the otel/realtime security legs stay env-switched, but an adopter
-should not have to guess what "on" costs.
+Direction: the otel, realtime and security legs stay env-switched, but an
+adopter should not have to guess what "on" costs.
 
 Raw ideas:
 

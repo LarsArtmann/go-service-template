@@ -25,7 +25,9 @@ All notable changes to this project are documented in this file.
   absolute-`dprint.json` gotcha, the `.dockerignore` artifact note, the
   `docs-gates run .` command, the ruling that posture-only changes do NOT bump
   the version stamp (so `Generated` still reads 2026-11-21), and the
-  auto-commit daemon note.
+  auto-commit daemon note. The 2026-11-22 status report's 50 §f items were
+  harvested: each one is now a TODO row, a ROADMAP theme, a CHANGELOG entry,
+  or an explicit not-do/non-goal, and the report itself stays untouched.
 - 2026-11-22: `goTarballHash` moved out of `flake.nix` into
   `goTarballHash.nix` (a `nix-checker` finding). A Go floor bump is now a
   version line plus a hash file, matching the `vendorHash.nix` shape, and
