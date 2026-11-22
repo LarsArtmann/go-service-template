@@ -65,3 +65,10 @@
 - README: image verify commands + `APP_ADDR` vs `ExposedPorts` footgun;
   AGENTS.md: buildflow-first commands, systemd-vs-container deploy paths,
   templ-regen/treefmt gotcha, 8080-squatter probe gotcha.
+- Structure-linter gaps closed: CONTRIBUTING.md (owner-flow + gate +
+  dogfood contract), .editorconfig (Go/templ tabs, config space-2),
+  .gitattributes (status docs as linguist-documentation), README Install
+  section (prereqs + devShell + gate).
+- Dependabot ecosystems: github-actions coverage already present; flake
+  has no Dependabot ecosystem by design — flake input bumps ride the
+  appkit train ritual (`nix flake lock --update-input`). Won't-implement.

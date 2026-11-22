@@ -21,6 +21,17 @@ Then rename (the only mechanical step):
    `flake.nix` `pname`, the flake.nix `-X` flag.
 3. `go mod tidy && go build ./...` — green by construction.
 
+## Install
+
+Prerequisites: Go ≥ 1.27.4 (or Nix with flakes — the devShell carries the
+exact toolchain). BuildFlow comes from a checkout of its repo (fleet-private,
+Nix-first — see its README):
+
+```bash
+nix develop                 # toolchain + treefmt + templ, no local installs
+buildflow --build-mode dev  # the full gate: build, race tests, lint, nix, docs
+```
+
 ## What's inside
 
 | Path                 | What it carries                                                                  |
