@@ -133,5 +133,5 @@ as rows so they cannot disappear, but the question belongs here:
 - **Auth, storage, and business entities.** Adopters bring their domain; the
   template ships an event-sourcing stub and nothing else.
 - **Extending cmdguard's `doctor` to assert image posture.** Image posture is
-  already proven by `checks.container-structure`; a second proof surface would
+  already proven by `.#checks.<system>.container-structure`; a second proof surface would
   drift from the first.

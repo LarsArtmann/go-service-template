@@ -47,7 +47,7 @@
 | Dogfood probe    | Exercising a scaffolded copy end-to-end: build, boot, probe `/healthz` + `/api/status` + `/version`, SIGTERM drain      | `CONTRIBUTING.md`; performed by this doc sweep            |
 | vendorHash       | The fixed-output hash of the Go module graph; a wrong value fails the first Nix build, which prints the right one       | `vendorHash.nix`, `flake.nix:37-39`                       |
 | app-image        | The OCI image built by the flake's `container` option (nix2container) — no Dockerfile involved                          | `flake.nix:52-61`; `.#app-image` outputs                  |
-| Image posture    | The container facts the structure check asserts: non-root `65532:65532`, `/bin/app serve`, `8080/tcp`, cacert, hash tag | `flake.nix` container block; `checks.container-structure` |
+| Image posture    | The container facts the structure check asserts: non-root `65532:65532`, `/bin/app serve`, `8080/tcp`, cacert, hash tag | `flake.nix` container block; `checks.<system>.container-structure` |
 | Content-hash tag | The image tag is the store content hash, so identical inputs produce an identical tag                                   | `.#app-image`; reproducibility proof in `CHANGELOG.md`    |
 | Build-tag gate   | Compiling a package only under an explicit tag (`events`), so the default binary carries no weight for it               | `internal/events/events.go:1`                             |
 

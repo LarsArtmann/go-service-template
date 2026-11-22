@@ -31,9 +31,10 @@
         # The go.mod floor (1.27.4) is ABOVE nixpkgs' go_1_27 (1.27.3) — the
         # recorded fleet drift. go-standard builds the exact toolchain from
         # the go.dev source tarball instead of failing the eval:
-        # bump BOTH lines on every appkit floor train.
+        # bump the version here AND the hash in goTarballHash.nix on every
+        # appkit floor train (a stale hash fails the fetch loudly).
         goTarballVersion = "1.27.4";
-        goTarballHash = "sha256-c8+4VxrsDAEXdofbhxY9Rqog6XeWcncokaoXZU2aYJk=";
+        goTarballHash = import ./goTarballHash.nix;
         # Filled by the first `nix build` (it prints the real hash); see
         # vendorHash.nix.
         vendorHash = import ./vendorHash.nix;

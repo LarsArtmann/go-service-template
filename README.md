@@ -93,12 +93,17 @@ kill -TERM %1                                     # watch the drain phase lines
 The OCI image (built from the flake, no Dockerfile):
 
 ```bash
-nix build .#app-image                             # image + structure check
+nix build .#app-image                             # the image (packages shorthand)
+nix build .#checks.<system>.container-structure   # posture gate: user, ports, entrypoint
 nix run .#app-image-load | docker load            # or podman load
 docker images                                     # tag = the store-path content hash
 docker run --rm -p 8080:8080 <tag-from-above>
 curl -s localhost:8080/version                    # the git rev, stamped via flake ldflags
 ```
+
+`<system>` is your Nix system (`x86_64-linux`, `aarch64-linux`, …). `checks`
+is a per-system attrset, so the `.#name` shorthand that works for
+`packages`/`apps` does not reach it.
 
 Port note: the container's `ExposedPorts` is fixed at `8080/tcp` in
 `flake.nix`, while the app's listen address comes from `APP_ADDR`

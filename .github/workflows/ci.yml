@@ -59,4 +59,7 @@ jobs:
         run: nix build .#app-image
 
       - name: Container structure check
-        run: nix build .#checks.container-structure
+        # `checks` is a per-system attrset, so the shorthand `.#name` form
+        # (which resolves packages/apps only) does not work here. The runner
+        # is x86_64-linux.
+        run: nix build .#checks.x86_64-linux.container-structure

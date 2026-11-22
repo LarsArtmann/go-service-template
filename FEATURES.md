@@ -63,7 +63,7 @@ not?
 | Feature                          | Status               | Evidence                                                              | Notes                                                                         |
 | -------------------------------- | -------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | Nix-built Go binary              | FULLY_FUNCTIONAL     | `flake.nix:27-50`; `result/bin/app` probed end-to-end                 | `internal/app.Version` stamped from `self.rev` via `ldflags`                  |
-| OCI image from the flake         | PARTIALLY_FUNCTIONAL | `flake.nix:57-61`; `.#app-image` + `checks.container-structure` green | Image never loaded/run — no container runtime on the dev machine (TODO row 1) |
+| OCI image from the flake         | PARTIALLY_FUNCTIONAL | `flake.nix:57-61`; `.#app-image` + `.#checks.<system>.container-structure` green | Image never loaded/run — no container runtime on the dev machine (TODO row 1) |
 | Image publish (`app-image-push`) | PARTIALLY_FUNCTIONAL | go-standard module output (skopeo → `ghcr.io/larsartmann/app`)        | Never exercised; publish policy is an open owner decision                     |
 | systemd unit                     | PARTIALLY_FUNCTIONAL | `systemd/app.service`                                                 | Ships with hardening directives; never booted under systemd in this repo      |
 
@@ -79,7 +79,7 @@ not?
 | ----------------------------------------- | ---------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | CI: build / vet / race-test               | DISABLED         | `.github/workflows/ci.yml:12-28`                                             | Zero runs observed — nothing pushed since the action pins landed (TODO row 4) |
 | CI: golangci-lint (v2 via `go install`)   | DISABLED         | `.github/workflows/ci.yml:30-45`; local run: `0 issues`                      | `golangci-lint-action` v6 cannot run a v2 binary, hence `go install`          |
-| CI: `nix-image` (image + structure check) | DISABLED         | `.github/workflows/ci.yml:49-62`                                             | Same push blocker; the same commands pass locally                             |
+| CI: `nix-image` (image + structure check) | DISABLED         | `.github/workflows/ci.yml:47-65`                                             | Same push blocker; the same commands pass locally                             |
 | Dependabot (gomod + github-actions)       | DISABLED         | `.github/dependabot.yml`                                                     | Config-only until the repo is pushed; flake inputs ride the appkit train      |
 | docs-gates battery                        | FULLY_FUNCTIONAL | `docs-gates run .` → PASS (freshness, audit-all, annotate, routing, cadence) | The ritual that keeps this doc set honest                                     |
 | golangci-lint fleet config                | FULLY_FUNCTIONAL | `.golangci.yml`; `golangci-lint run ./...` → `0 issues`                      | Copied from the appkit fleet standard                                         |

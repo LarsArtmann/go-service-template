@@ -46,13 +46,14 @@ dependency drift loud, not to date-stamp every commit.
 buildflow --build-mode dev     # the gate: build, race tests, golangci-lint, nix, treefmt, docs-gates
 buildflow doctor               # environment/binary triage
 docs-gates run .               # the docs battery alone (freshness, audit-all, annotate, routing, cadence)
-nix build .#app-image          # OCI image + structure check
+nix build .#app-image          # OCI image (packages shorthand)
+nix build .#checks.<system>.container-structure  # posture gate (per-system attrset)
 
 # raw fallbacks (what the gate wraps):
 go build ./...
 go test ./... -race -count=1
 golangci-lint run ./...        # config copied from the appkit fleet standard
-nix build                      # vendorHash.nix is filled; first bump prints the new hash
+nix build                      # vendorHash.nix + goTarballHash.nix are filled; a floor bump prints the new hash
 ```
 
 Verified 2026-11-22 on the Nix-built binary (`result/bin/app`): boot via
@@ -70,7 +71,7 @@ posture to the old Dockerfile: non-root `65532:65532`, cacert included,
 `app serve` entrypoint, `8080/tcp` exposed, content-hash tag. Outputs
 (Linux only): `packages.app-image`, `apps.app-image-load` (pipe into a local
 docker/podman), `apps.app-image-push` (skopeo to `ghcr.io/larsartmann/app`),
-`checks.container-structure`. The `Version` stamp rides the flake's `ldflags`
+`checks.<system>.container-structure`. The `Version` stamp rides the flake's `ldflags`
 (`-X .../internal/app.Version=${self.rev...}`), not a Docker build arg.
 
 **systemd vs container deploy paths.** `systemd/app.service` (`Type=notify` +

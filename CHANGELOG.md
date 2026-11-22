@@ -26,6 +26,10 @@ All notable changes to this project are documented in this file.
   `docs-gates run .` command, the ruling that posture-only changes do NOT bump
   the version stamp (so `Generated` still reads 2026-11-21), and the
   auto-commit daemon note.
+- 2026-11-22: `goTarballHash` moved out of `flake.nix` into
+  `goTarballHash.nix` (a `nix-checker` finding). A Go floor bump is now a
+  version line plus a hash file, matching the `vendorHash.nix` shape, and
+  `nix-update`-style tooling can read the hash without parsing the flake.
 - 2026-11-22: removed the Dockerfile — OCI images build from the flake
   (go-standard `container` option, nix2container). Same posture, no daemon:
   non-root `65532:65532`, `/bin/app serve`, `8080/tcp`, cacert included,
@@ -43,6 +47,12 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- 2026-11-22 (docs-health audit): the `nix-image` CI job ran
+  `nix build .#checks.container-structure`, which does not resolve — `checks`
+  is a per-system attrset and the `.#name` shorthand only reaches
+  `packages`/`apps`. It is now `.#checks.x86_64-linux.container-structure`,
+  and every doc that named the bare attr says `checks.<system>` instead.
+  Verified locally: the check builds and passes under that path.
 - 2026-11-22 (docs-health audit): `SECURITY.md` claimed "Automated security
   scanning runs in CI" while `ci.yml` carries no scanner. The claim is gone
   and the gap is now TODO_LIST row 12 (gitleaks step). `.config/metadata.yaml`
