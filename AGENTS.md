@@ -14,6 +14,7 @@ in the appkit READMEs (this repo contains no framework code).
 | `CHANGELOG.md`            | Dated history of what changed                            |
 | `docs/DOMAIN_LANGUAGE.md` | The archetype's vocabulary (verify terms against code)   |
 | `docs/status/`            | Timestamped reports — annotate, never rewrite            |
+| `docs/review/libs/`       | Fleet library audits — 21 per-lib .md + index.html (snapshot semantics, like docs/status) |
 
 Doctrine: a completed TODO leaves `TODO_LIST.md` for `CHANGELOG.md`; a fact
 lives in exactly one doc; `docs-gates run .` is the gate over all of it.
@@ -39,6 +40,23 @@ shared module.
 the Dockerfile→Nix-OCI migration changed the repo without moving the appkit
 pins, so `Generated` still reads 2026-11-21. The ritual exists to make
 dependency drift loud, not to date-stamp every commit.
+
+## Fleet library audits (2026-11-23)
+
+`docs/review/libs/` holds 21 library-utilization audits (one .md per
+LarsArtmann library, `index.html` is the series dashboard). Durable outcomes:
+the composition root is canonical and the default binary carries zero
+event-sourcing weight (verified); five libs are correctly ABSENT
+(business-rules, filewatcher, daemon, credentials-store, cqrs-htmx —
+cqrs-htmx composes ON TOP of the preset via `setup.RunWithAppkit`, never
+inside a service); the biggest "not to the max" items are UPSTREAM, not
+template-local: preset `APPKIT_SECURITY=strict` via env silently degrades
+(appkit bug), `NoDashboard` panics on the current go-health resolution
+(floor skew), default WriteTimeout cuts all SSE at 30s (incl. the dashboard
+spine), the dashboard serves CDN assets while embedded ones sit unserved,
+and error-family BSD exit codes never reach os.Exit. Re-review trigger: the
+next appkit preset train or any preset/dashboard release landing the routed
+fixes (full findings + routing in `docs/review/libs/index.html`).
 
 ## Build & verify
 
