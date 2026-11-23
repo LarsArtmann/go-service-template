@@ -1,0 +1,172 @@
+# go-cqrs-lite — utilization review (go-service-template)
+
+| Reviewed | 2026-11-23 |
+|---|---|
+| Library | github.com/larsartmann/go-cqrs-lite (+ submodules) |
+| Version audited | cmd/cqrs-lint/v4.22.2-137-g35856a709 (35856a709, 2026-11-23) |
+| Template pin | indirect via go-appkit/cqrs v0.9.0 (23 modules, go.mod:72-94; the wrapper itself is a direct require at go.mod:10) |
+| Latest tag | per-module trains; headline: system/v4/v4.19.0, metaengine/v4/v4.26.0, metaengine/sqliteengine/v4/v4.9.1 (all 2026-11-15) |
+| Adoption score | 30/100 (low) — 2 of 10 applicable capabilities fully leveraged, 2 partial |
+| Verdict | Correct archetype posture (zero default-binary weight, canonical system.New path behind a build tag), but the gated skeleton misdescribes its own wiring and rides an appkit train that is one release behind a set of real concurrency fixes. |
+
+## Verdict
+
+Not "used to the max", and for this repo that is mostly right: an archetype with no domain should carry zero event-sourcing weight in its default binary, and it does (verified: `go list -deps ./...` contains 0 go-cqrs-lite packages; 24 compile in only under `-tags events`). The one template file that touches the library, `internal/events/events.go`, sits on the canonical path: `cqrs.NewEventService` in go-appkit/cqrs builds on `system.New` (verified at both the pinned v0.9.0 tag and HEAD, see below), so there is no legacy-topology problem to report upstream. Where it falls short of "max for an archetype": the skeleton's comments have drifted from its code (it claims logger wiring and a `New(cfg.LogLevel)` signature that do not exist), it stops one step short of pointing at the canonical `system.DomainConfig` shape the fleet doctrine mandates, and the pinned train (appkit cqrs v0.9.0) misses the sqliteengine EnforceCap deadlock fix, the metaengine SSE hardening, and the system RawQuery decoder fix, all already shipped in appkit cqrs v0.10.0. Max here means: an accurate, current, pointer-shaped skeleton, not more runtime wiring.
+
+## What the template uses today
+
+- GRAPH-ONLY by default. 23 go-cqrs-lite modules sit in the indirect block (`/home/lars/projects/go-service-template/go.mod:72-94`) purely because `go mod tidy` considers all build configurations; the default binary links none of them (`go list -deps ./... | grep -c go-cqrs-lite` = 0). Graph presence with zero runtime wiring is NOT usage; this report treats the whole footprint as gated-scaffold, not consumption.
+- TEMPLATE-DIRECT (gated): `internal/events/events.go` (40 lines, `//go:build events` at line 1) imports `github.com/larsartmann/go-appkit/cqrs` and calls `cqrs.NewEventService(cqrs.EventConfig{DSN: "events.db", DLQ: &cqrs.DLQConfig{}})` (events.go:30-34). It is NOT wired into `Serve` (`internal/app/service.go:47-64` builds only the preset, routes, and views), documented as delete-if-CRUD (`README.md:59`, `FEATURES.md:74`).
+- PRESET-MEDIATED: nothing. The appkit preset does not depend on go-appkit/cqrs or any go-cqrs-lite module (`/home/lars/projects/go-appkit/preset/go.mod:5-16`, no cqrs require). The only path in is the template's own direct require of the wrapper (`go.mod:10`).
+- Upstream topology verified (special check): `cqrs.NewEventService` (eventservice.go:197) resolves deployment config (Driver/DSN/Pragmas, YAML `system.LoadConfig`, or a pre-loaded `system.DeploymentConfig`) and calls `system.New(context.Background(), mergeDomain(...), deployment)` at `/home/lars/projects/go-appkit/cqrs/eventservice.go:447` (buildSystem, :440). The same call exists at the pinned v0.9.0 tag (`git show cqrs/v0.9.0:cqrs/eventservice.go`, system.New at :446; the move off the deprecated stack/sqlite preset happened at wrapper v0.5.0 per the package doc, eventservice.go:6-10). So the appkit wrapper is ADR-0123-compliant: no PRESET-UPSTREAM topology finding.
+- The wrapper's runtime surface the skeleton inherits for free: projectionhost with crash-restart/checkpoints/DLQ (eventservice.go:33), the typed C/Q facade (`cqrs/commands.go:10-13`, `DefaultCommandMiddleware` at commands.go:27), OTel projection metrics (`cqrs/otelmetrics.go`), readiness/staleness accessors (`cqrs/healthaccessors.go`, README "Readiness" at `/home/lars/projects/go-appkit/cqrs/README.md:211-249`), and the `EventConfig.Domain` passthrough to `system.DomainConfig` (eventservice.go:148-165, README:416-458).
+
+## Capability inventory
+
+| Capability | Status | Evidence | Note |
+|---|---|---|---|
+| Composition root (`system.New`, ADR-0123) via the appkit wrapper | Partially used | appkit `cqrs/eventservice.go:447`; template events.go:31 | Right entry point, gated off; constructs but never starts (StartProjections only in comments, events.go:14) |
+| Zero default-binary weight (build-tag gate) | Fully leveraged | events.go:1; `go list -deps` = 0 cqrs-lite packages | The archetype's actual goal; verified, not asserted |
+| Module-graph hygiene (tidy keeps gated requires) | Fully leveraged | `AGENTS.md:107-108` documents the gotcha; go.mod:72-94 | Deliberate, documented, understood |
+| Poison-event DLQ | Partially used | events.go:33 (`DLQ: &cqrs.DLQConfig{}`); appkit eventservice.go:85-91, 168-180 | Enabled with defaults (SQLite store, threshold 3); nothing runs until wired; admin surface (ReplayDeadLetters, ResetProjection) unreferenced |
+| Deployment-time engine swap (Driver/ConfigPath/`CQRS_` env grammar) | Missed opportunity | appkit eventservice.go:53-77; skeleton hardcodes `DSN: "events.db"` (events.go:32) | The wrapper's koanf/`CQRS_` env layer matches the template's env-driven posture; a one-line comment pointing at it is absent |
+| Domain declarations / metaengine read models (`EventConfig.Domain`) | Missed opportunity | appkit eventservice.go:148-165; README:416-458; lib README quickstart (README.md:152-216) | The canonical v5 shape per SKILL.md:15-20; the skeleton stops at an empty config with no pointer |
+| Readiness + staleness + health integration | Missed opportunity | appkit README:211-249 (`ReadyCheck`, `CheckStaleness`, appkithealth bridge); skeleton comment mentions only StartProjections + a ShutdownHook (events.go:13-16) | The preset owns `/healthz`/`/readyz`; the wiring comment omits how to compose `ReadyCheck` into it |
+| Projection observability (Metrics, OTel instruments, flight recorder) | Missed opportunity | appkit eventservice.go:93-120; `cqrs/otelmetrics.go`; README:251-298 | Skeleton passes no Logger, no Metrics; the OTel bridge would reuse the preset's otel leg |
+| Testing utilities (`Driver:"memory"`, systemscenario, scenario, testutil) | Missed opportunity | appkit eventservice.go:54-63 (memory driver); README:645-694 (cookbook); SKILL.md:26 (ADR-0153) | No `_test.go` behind the events tag; an adopter enabling the tag gets no compile/run proof the skeleton still matches the pinned wrapper |
+| cqrs-lint domain linting | Not applicable | lib README:340 (217 rules); appkit README:696-725 | Zero domain code exists to lint until an adopter enables the tag; belongs in adopter docs, not the archetype |
+| Broker + SSE integrations (watermill CatchUpSubscriber, metaengine.ServeSSE, realtime) | Not applicable | SKILL.md:104-122 routing matrix; appkit README:593-618 | Adopter-specific; would pull broker drivers into the graph for no default-binary benefit |
+| Event signing / payload encryption | Not applicable | lib README:59; signing/v4, encryption/v4 module docs | Production hardening for real domains; not even surfaced through the appkit wrapper's config today |
+| Command lifecycle audit trail (`WithCommandLifecycle`) | Not applicable | appkit README:497-591; used only in the wrapper's godoc example (`cqrs/example_test.go:18,343-345`) | Domain-specific; the wrapper itself keeps it example-only |
+| Skeleton self-consistency (comments vs code) | Misused | events.go:4 claims "wired into the service's logger" but no `Logger` is set (:31-34); events.go:11 shows `events.New(cfg.LogLevel)` but the signature is `New(_ context.Context)` (:30) | Two drifts in a 40-line teaching file; the skeleton is the archetype's only cqrs surface, so accuracy is the whole value |
+
+Scoring: N=14, Not-applicable=4, A=10. Fully leveraged=2 (rows 2,3), Partially used=2 (rows 1,4), Missed opportunity=5, Misused=1. Score = round(100 × 3.0/10) = 30.
+
+## Gaps and opportunities
+
+1. **Bump the appkit train: `go-appkit/cqrs v0.9.0` → `v0.10.0`.** [TEMPLATE] Impact: high. Ease: trivial (one line in `/home/lars/projects/go-service-template/go.mod:10` + `go mod tidy`; all go-cqrs-lite pins move as indirects). What the gap contains (changelog + git evidence): sqliteengine v4.6.0 → v4.9.1 carries the `EnforceCap` deadlock fix (concurrent cap enforcement could deadlock the journal writer; fix rides v4.8.0+) and the per-pooled-connection pragma fix (busy_timeout held on only the first pooled connection, issue #128), metaengine v4.20.0 → v4.26.0 carries the SSE reconnect hardening (malformed `Last-Event-ID` now answers 400 instead of silently replaying the whole journal) and the Typed fold family, system v4.16.0 → v4.19.0 carries the MaxOpenConns plumbing (v4.17.0), journal-trim/cap-lock-order (v4.18.0), and the RawQuery auto-decoder fix (commit `3a3deaa46`, in tag v4.19.0; a mixed RawQuery+ProjectionSpec domain previously crash-looped the projection worker). Source: `/home/lars/projects/go-appkit/cqrs/CHANGELOG.md:5-16`, `/home/lars/projects/go-cqrs-lite/CHANGELOG.md:175,192,196`, `git log system/v4.16.0..system/v4/v4.19.0 -- system/v4`. These only bite when an adopter enables `-tags events`, but the fix is one line away.
+2. **Fix the skeleton's comment-vs-code drift.** [TEMPLATE] Impact: medium (the skeleton is the archetype's teaching surface). Ease: trivial. What: either set `Logger` (it cannot: `Serve` owns the logger and the skeleton is deliberately standalone; so fix the comment) and align the wiring example with the real signature. Sketch, in `internal/events/events.go`:
+   ```go
+   // Wiring it in (inside app.Serve, behind the same tag):
+   //     es, err := events.New(ctx)
+   //     cfg := cqrs.NewEventService(...) // or pass Logger: svc.Logger here
+   //     _ = es.Host().Register(myProjection)
+   //     _ = es.StartProjections(ctx) // pass the long-lived run ctx (appkit README "Accessors")
+   // plus appkitConfig.ReadyCheck composition (appkit cqrs README:217-221).
+   ```
+   Also delete the "wired into the service's logger" claim at events.go:4 or make it true by accepting `*slog.Logger` in `New`.
+3. **Point the skeleton at the canonical Domain shape instead of expanding it.** [TEMPLATE] Impact: medium. Ease: easy. The doctrine (SKILL.md:15-20, "NEW APPS MUST build on system + metaengine") is satisfied by the wrapper, but an adopter following only the skeleton sees a bare store+DLQ and may hand-roll host projections, the pattern ADR-0123 demoted. Full expansion (option iii: a live `Domain: &system.DomainConfig{...}` projection example behind the tag) is free at runtime (still gated) but duplicates the wrapper's tested, `readme_sync_test`-pinned README example (`/home/lars/projects/go-appkit/cqrs/README.md:426-458`) and would drift against every appkit train. Recommended middle: keep the code minimal, add a short commented block naming the three canonical next steps: (a) declare read models via `EventConfig.Domain` + `system.QuerySet`/`Lookup`, (b) test with `systemscenario` (ADR-0153), (c) lint with `cqrs-lint` once domain code exists. Verdict on the four postures: keep the build-tag gate (correct), do not delete (it is the only pointer to the fleet's event-sourcing path), do not wire on by default (adds ~24 modules plus a SQLite file to every CRUD adopter), expand by reference not by duplication.
+4. **Env-driven deployment for the events leg.** [TEMPLATE, small] The template is env-driven by policy (`serveFlags struct{}` empty on purpose, `Config` carries `APP_ADDR`/`APP_LOG_LEVEL`), yet the skeleton hardcodes `DSN: "events.db"`. The wrapper already supports `ConfigPath` + `CQRS_` env overrides (appkit eventservice.go:69-72). One comment line: "swap DSN per deployment or load cqrs.yaml via ConfigPath (CQRS_ENGINES__PRIMARY__DSN)".
+5. **Skeleton smoke test behind the tag.** [TEMPLATE, small] A `//go:build events` test that builds the service with `Driver: "memory"` (supported purely for tests, appkit eventservice.go:54-63) would prove the gated code still compiles against each appkit train; CI runs it with `-tags events` so drift is caught at the bump, not by the first adopter. Today nothing in the repo compiles events.go except a manual `-tags events` build (observed: gopls reports "No packages found" for the file).
+6. **Per-module changelogs for the big modules.** [LIB-UPSTREAM, minor] The root CHANGELOG's [Unreleased] section carries module-level content (decider StateCache clone fix, projectionhost live-checkpoint degrade, `WithClock`), but `system/v4`, `metaengine/v4`, `sqliteengine` have no module CHANGELOG, and the appkit cqrs changelog notes a 2026-11-13 ruling that "module changes live in module CHANGELOGs". Consumers auditing what a pin bump buys must diff git tags by hand (as this review did). Also observed, impact UNVERIFIED: the tag scheme changed mid-train (flat `system/v4.16.0` vs nested `system/v4/v4.19.0`, from the 2026-11-10 `/v4` path move, commit `0e4fbb3d2`), which can confuse `go get module@latest` and dependabot diffing.
+7. **NOT-NOW: preset-mediated cqrs leg, default-on events, broker/SSE/signing scaffolds.** [NOT-NOW] Reasons: the preset must stay CRUD-neutral (most adopters never enable events; wiring cqrs into the preset would push the 24-module graph into every service), the default binary must keep zero event-sourcing weight (that is the documented product decision, FEATURES.md:74), and broker/SSE/signing choices are domain-specific. The build-tag gate is exactly the right mechanism for optional weight here.
+
+## Should the archetype adopt or wire more?
+
+No, not in the default binary, and the report's low score should not be read as a call to wire more runtime. The template has exactly one go.mod, no submodules, 322 lines of Go, and no domain: event sourcing here is a documented scaffold, not a capability to consume. What belongs in the default binary: nothing from this library (current state, correct). What belongs in docs/scaffold: the gated skeleton, made accurate (gap 2), pointed at the canonical `system.DomainConfig` + `systemscenario` + `cqrs-lint` path (gap 3), with env-driven deployment noted (gap 4), kept current on the appkit train (gap 1), and compile-checked in CI under the tag (gap 5). What must stay out: any engine driver beyond the blank-imported sqlite default, broker adapters, SSE serving, signing/encryption, and any cqrs wiring inside `Serve` itself; those are adopter-domain decisions and each adds graph weight the archetype exists to avoid.
+
+## Version currency
+
+- Template (via appkit cqrs v0.9.0, go.mod:10 + :72-94) vs latest tags: system v4.16.0 → v4.19.0 (behind 3 minors, 2026-10-27 → 2026-11-15), metaengine v4.20.0 → v4.26.0 (behind 6), sqliteengine v4.6.0 → v4.9.1 (behind 4), id v4.7.4 → v4.7.5; current at latest: event v4.15.2, command v4.14.1, decider v4.8.0, dispatcher v4.5.2, projectionhost v4.7.1, projection v4.4.2, query v4.10.1, middleware v4.7.2, otel v4.5.3, watermill v4.7.0, and every other module in the block (verified against the lib's generated versions manifest, README.md:353-476).
+- The bump rides the appkit train and that train already left: appkit cqrs v0.10.0 (2026-11-22) is exactly the sweep the template needs, moving metaengine to v4.26.0, system to v4.19.0, sqliteengine to v4.9.1, id to v4.7.5 (`git show cqrs/v0.10.0:cqrs/go.mod`; contents per `/home/lars/projects/go-appkit/cqrs/CHANGELOG.md:5-16`). appkit HEAD is `cqrs/v0.10.0-7-g74e4d80` with no further go-cqrs-lite changes in its go.mod. So: the template's move is a one-line direct-pin bump of `go-appkit/cqrs`, not a per-module retag; the go-cqrs-lite pins themselves are indirect and not the template's to manage individually.
+- Unreleased at lib HEAD beyond every tag (root CHANGELOG [Unreleased], CHANGELOG.md:28+; no newer decider/projectionhost tags exist than v4.8.0/v4.7.1): the decider `StateCache.Get` codec-clone fix (a shared-state race for pointer-shaped states) and the projectionhost live-checkpoint fix (a failed checkpoint save no longer fails the command dispatch, issue #128). Even appkit cqrs v0.10.0 does not carry these; nothing for the template to do except know they exist.
+
+## Risks
+
+- Known-bad pins under the tag (all fixed by the v0.10.0 train, see Version currency): sqliteengine v4.6.0 predates the EnforceCap journal-writer deadlock fix and the pooled-connection busy_timeout fix; system v4.16.0 predates the RawQuery mixed-declaration decoder fix (projection worker crash-loop); metaengine v4.20.0 predates the SSE malformed-cursor 400 fix. Only exploitable when an adopter builds with `-tags events`.
+- Skeleton DSN footgun: `DSN: "events.db"` is CWD-relative; an adopter enabling the tag in a container writes SQLite next to the binary unless they change it. The file's own comment says "Swap Driver/DSN per deployment" (events.go:29), so it is disclosed, but there is no env knob.
+- `StartProjections` context footgun is real and documented upstream: a helper-scoped `defer cancel()` silently kills every projection worker long after the call returns (goroutine-dump-proven 2026-11-08, appkit README Accessors table). The skeleton's wiring comment does not repeat the warning.
+- Proprietary license (lib README.md:480-484): pkg.go.dev hides all module docs; adopters must read local `go doc` or SKILL.md. Not a template risk, worth knowing when cloning.
+- cqrs-lint < v4.22 re-reports E004/C040 phantoms on converter-pattern event declarations (SKILL.md:186-188); adopters should use the current standalone binary. No security issues found in what the template actually links (nothing).
+
+## How to verify
+
+```bash
+# Default binary carries zero go-cqrs-lite weight; 24 packages under the tag
+cd /home/lars/projects/go-service-template
+go list -deps ./... | grep -c go-cqrs-lite            # -> 0
+go list -tags events -deps ./... | grep -c go-cqrs-lite  # -> 24
+
+# Template pins: direct wrapper require + 23 indirect cqrs-lite modules
+grep -n 'go-appkit/cqrs' go.mod                        # -> :10  v0.9.0
+grep -c 'go-cqrs-lite' go.mod                          # -> 23
+
+# The wrapper builds on system.New (ADR-0123), at HEAD and at the pinned tag
+rg -n 'system\.New' /home/lars/projects/go-appkit/cqrs/eventservice.go   # -> :447
+git -C /home/lars/projects/go-appkit show cqrs/v0.9.0:cqrs/eventservice.go | grep -n 'system.New'  # -> :446
+# The preset does NOT depend on cqrs (preset-mediated usage = none)
+rg -c 'cqrs' /home/lars/projects/go-appkit/preset/go.mod || echo none    # -> none
+
+# Skeleton facts and drift
+sed -n '1,40p' /home/lars/projects/go-service-template/internal/events/events.go
+rg -n 'events' /home/lars/projects/go-service-template/AGENTS.md         # -> :107-108 tidy gotcha
+
+# Version currency: v0.10.0 swept the exact gap
+git -C /home/lars/projects/go-appkit show cqrs/v0.10.0:cqrs/go.mod | grep -E 'system/v4|metaengine/v4 |sqliteengine'
+# -> system/v4 v4.19.0, metaengine/v4 v4.26.0, sqliteengine/v4 v4.9.1
+git -C /home/lars/projects/go-cqrs-lite describe --tags                  # -> cmd/cqrs-lint/v4.22.2-137-g35856a709
+git -C /home/lars/projects/go-cqrs-lite tag --list 'system/v4*' | sort -V | tail -2   # -> system/v4.19.0, system/v4/v4.19.0 (dual-tagged across the /v4 path-move transition)
+git -C /home/lars/projects/go-cqrs-lite log --oneline system/v4.16.0..system/v4/v4.19.0 -- system/v4 | grep RawQuery  # -> 3a3deaa46
+
+# Submodule count and manifest
+find /home/lars/projects/go-cqrs-lite -name go.mod -not -path '*/.git/*' | wc -l        # -> 105
+rg -n 'versions-manifest:begin' -A 5 /home/lars/projects/go-cqrs-lite/README.md
+```
+
+## Submodule matrix
+
+The library has 105 go.mod files (91 excluding example/, scratch/, testdata fixtures). Grouped per the audit instruction, not exhaustively listed.
+
+### (a) In template graph AND used by appkit cqrs runtime code (compiled under `-tags events`)
+
+| Module path | In template graph | How used (citation) | Latest tag | Note |
+|---|---|---|---|---|
+| system/v4 | yes, v4.16.0 | composition root: `system.New` at appkit cqrs/eventservice.go:447 | v4.19.0 | The ADR-0123 required path; wrapper is compliant |
+| metaengine/v4 | yes, v4.20.0 | planner/read models via `EventConfig.Domain` (eventservice.go:148-165) | v4.26.0 | Stable since 2026-11-03 (42 direct fleet consumers) |
+| metaengine/sqliteengine/v4 | yes, v4.6.0 | default driver, blank-import contract (eventservice.go:32) | v4.9.1 | Carries the EnforceCap deadlock + pragma-per-connection fixes |
+| event/v4 | yes, v4.15.2 | store/bus/checkpoint types (eventservice.go:31) | v4.15.2 | Current |
+| command/v4 | yes, v4.14.1 | typed command facade + middleware (appkit cqrs/commands.go) | v4.14.1 | Current |
+| query/v4 | yes, v4.10.1 | typed query facade (commands.go:13, eventservice.go:34) | v4.10.1 | Current |
+| decider/v4 | yes, v4.8.0 | `RegisterDecider` facade (commands.go:10) | v4.8.0 | Current; the StateCache clone fix at lib HEAD is unreleased |
+| projectionhost/v4 | yes, v4.7.1 | host + DLQ + checkpoints (eventservice.go:33, 186-191) | v4.7.1 | Current; #128 live-checkpoint fix unreleased |
+| projection/v4 | yes, v4.4.2 | `projection.Projection` type through the facade | v4.4.2 | Current |
+| middleware/v4 | yes, v4.7.2 | `DefaultCommandMiddleware` (commands.go:11, 27) | v4.7.2 | Current |
+| otel/v4 | yes, v4.5.3 | `cqrsotel.Tracer` seam (commands.go:12) | v4.5.3 | Current |
+| id/v4 | yes, v4.7.4 | branded stream IDs in facade signatures | v4.7.5 | One patch behind; rides v0.10.0 |
+
+### (b) In template graph but transitive only (pulled by system/metaengine; linked only under `-tags events`; no direct reference in appkit non-test code)
+
+| Module path | In template graph | How used | Latest tag | Note |
+|---|---|---|---|---|
+| claiming/v4 | yes, v4.0.2 | runtime plumbing under system (metaengine claimkit) | v4.0.2 | Current |
+| commandlifecycle/v4 | yes, v4.3.1 | transitive of system | v4.3.1 | Current |
+| commandlifecycle/projections/v4 | yes, v4.2.3 | appkit example only (`cqrs/example_test.go:18,343-345`) | v4.2.3 | Test-only from the consumer side; still gated off by default |
+| dedup/v4 | yes, v4.3.0 | engine dedup under system (ADR-0142) | v4.3.0 | Current |
+| dispatcher/v4 | yes, v4.5.2 | command/query dispatch under system | v4.5.2 | Current |
+| metadata/v4 | yes, v4.7.3 | event metadata plumbing | v4.7.3 | Current |
+| metaengine/projectionadapter/v4 | yes, v4.6.2 | event-to-fold adapter under system | v4.6.2 | Current |
+| record/v4 | yes, v4.6.2 | record envelope types | v4.6.2 | Current |
+| schema/v4 | yes, v4.7.1 | payload schema derivation | v4.7.1 | Current |
+| snapshot/v4 | yes, v4.7.0 | snapshot store under system | v4.7.0 | Current |
+| watermill/v4 | yes, v4.7.0 | bus plumbing (gochannel default) | v4.7.0 | Current; broker drivers stay opt-in blank imports |
+
+### (c) NOT in template graph, doctrine-relevant for adopters (one line each)
+
+| Module path | In template graph | How used | Latest tag | Note |
+|---|---|---|---|---|
+| systemscenario/v4 | no (appkit cqrs test-only dep) | BDD over a real system.New boot, ADR-0153 | v4.3.0 | The testing doctrine for any adopter who enables the events tag |
+| systemcatalog/v4 | no | derive AsyncAPI/catalog truth from DomainConfig | v4.0.0 | Pairs with the wrapper's F032 catalog-mandate policy |
+| testutil/v4 | no | CapturingSlogHandler, DelayedJournal, rapid generators | v4.3.4 | Assert projection worker logs without a DB |
+| scenario/v4 | no | pure decider Given/When/Then, no database | v4.4.3 | Cheapest first test loop for decide/fold pairs |
+| scheduling/v4 | no | durable deadline timers, cancellations, manual clock | v4.7.0 | Sagas/timeouts once a domain exists |
+| graph/v4 | no | graph projection tier for traversal-heavy reads | v4.3.4 | Edge reads migrate to metaengine graphadapter at v5 |
+| kv/v4 | no | ViewStore/TypedStore/Cache foundations | v4.4.0 | Legacy tier per ADR-0123; migration-only |
+| storage/v4 | no | SQL event/snapshot/checkpoint stores | v4.11.1 | Legacy; system wires engines internally now |
+| queue/v4 (+mysql/postgres/sqlite) | no | durable work-queue contract (Enqueue/ClaimDue/Complete) | v4.0.3 | Background jobs beside the journal |
+| encryption/v4 | no | XChaCha20-Poly1305/AES-GCM payload encryption + key rotation | v4.4.6 | Compliance-grade payload secrecy |
+| signing/v4 | no | HMAC/Ed25519/multisig event signing | v4.4.2 | Tamper-proof streams |
+| deriver/v4 | no | event-to-command derivation, saga alternative (ADR-0040) | v4.5.0 | Reaction flows without a saga framework |
+| listing/v4 | no | stream listing/status with tombstone policy | v4.4.4 | Ops views over streams |
+| catalog/v4 | no | AsyncAPI/EventCatalog/OpenAPI/D2 exporters + docserver | v4.15.0 | appkit already wraps docserver in its own `docs` module (not in template graph) |
+| benchkit/v4 | no | benchmark suite, `FactoryFromSystem` | v4.7.0 | EXPERIMENTAL; prefer the cqrs-bench CLI at arm's length |
+| prometheus/v4 | no | OTel-to-Prometheus bridge with /metrics handler | v4.3.4 | If an adopter's ops stack is Prometheus-native |
