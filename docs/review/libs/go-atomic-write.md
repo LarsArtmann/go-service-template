@@ -1,0 +1,99 @@
+# go-atomic-write: utilization review (go-service-template)
+
+| Reviewed | 2026-11-23 |
+|---|---|
+| Library | github.com/larsartmann/go-atomic-write (single module, no submodules) |
+| Version audited | v0.7.0-2-g38dbb9d (38dbb9d, 2026-11-23 03:02 +0100) |
+| Template pin | v0.6.2 (indirect via cmdguard/v5 v5.1.0 → samber-do-auditlog v0.12.3) |
+| Latest tag | v0.7.0 (released 2026-11-23, same day as this audit; drift) |
+| Adoption score | 50/100 (moderate), 3 of 3 applicable capabilities leveraged (all partially: one dormant cmdguard-mediated export path) |
+| Verdict | Nothing in the fleet chain executes go-atomic-write for this template: the default binary writes zero files, the linker drops the package entirely (0 symbols in `go tool nm`), and GRAPH-ONLY is the correct posture, not a defect. |
+
+## Verdict
+
+Bluntly: go-atomic-write is not used at all by this template, and that is correct. The archetype's 7 Go files contain no file writes (zero hits for `os.WriteFile`/`os.Create`/`os.OpenFile`), its only on-disk artifact anywhere is the build-gated `events.db` SQLite journal (`internal/events/events.go:32`), and SQLite owns that file's durability through its own journal/WAL layer, where rename-atomicity would be actively harmful. The module sits in the graph for exactly one reason: cmdguard v5 imports samber-do-auditlog at package level (`cmdguard/pkg/cmdguard/v5/auditlog.go:14`), and auditlog's file exports delegate to `atomicwrite.WriteFunc` (`samber-do-auditlog/plugin.go:246`); but that path is opt-in twice over (`WithAuditLog` + `ExportAuditLog` with a `Path`) and the template calls neither, so the linker dead-code-eliminates the whole package from the default binary (verified: 0 `atomicwrite` symbols vs 441 `samber-do-auditlog` symbols). "Max" here does not mean wiring writes in; it means keeping the mediated seam intact so an adopter who enables audit-log export gets crash-safe files for free, and pointing adopters at the library the moment their service first needs to persist a file. This is correct-posture mediation: the value is latent, on purpose.
+
+## What the template uses today
+
+- **GRAPH-ONLY (module graph, not the binary)**: `github.com/larsartmann/go-atomic-write v0.6.2 // indirect` (`/home/lars/projects/go-service-template/go.mod:69`). `go mod why -m` chain: `cmd/app` → `github.com/larsartmann/cmdguard/v5/pkg/cmdguard/v5` → `github.com/larsartmann/samber-do-auditlog` → `go-atomic-write`. `go mod graph` shows exactly two requirers of it: `cmdguard/v5@v5.1.0` and `samber-do-auditlog@v0.12.3` (the true direct requirer, `samber-do-auditlog/go.mod:12`). Stronger than graph-only absence of use: the compiled default binary contains zero atomicwrite symbols (see How to verify).
+- **Dormant PRESET-side mediation via cmdguard (not appkit)**: the only live fleet call site is `writeToFile` → `atomicwrite.WriteFunc(path, fn)` (`/home/lars/projects/samber-do-auditlog/plugin.go:241-252`), backing every `Plugin.ExportTo*` file export (`/home/lars/projects/samber-do-auditlog/plugin_export.go:20-130`). cmdguard surfaces it as `ExportAuditLog` writing to a file when `cfg.Path != ""` (`/home/lars/projects/cmdguard/pkg/cmdguard/v5/auditlog.go:154-161`), which no-ops unless audit logging was enabled via `WithAuditLog` (`/home/lars/projects/cmdguard/pkg/cmdguard/v5/cli_options.go:269-274`). The template's CLI wiring uses only `WithCLIVersion` + `WithBatteries` (`/home/lars/projects/go-service-template/cmd/app/main.go:35-44`); `WithBatteries` sets validation/signal/graceful-shutdown/error-hints flags and leaves `s.auditLog` nil (`cli_options.go:126-135`, `cli.go:51`). So the mediated path compiles into every adopter binary but never runs unless the adopter opts in; for this template even the package is linker-dropped.
+- **ABSENT from the appkit preset**: zero references in any go.mod, go.sum, or .go file under `/home/lars/projects/go-appkit` (rg evidence below). appkit knows about the library only as the pre-named floor for its unwired D4 "atomic file write" battery (go-appkit `TODO_LIST.md:122`, `docs/feedback/processed/2026-09-04_batteries-included-sdk-gap-analysis.md:65`: "go-atomic-write ≥ v0.5.1 (Windows trap)", demand-gated).
+- **Events leg does NOT use it**: `internal/events/events.go` (build tag `events`, line 1) opens `DSN: "events.db"` (`:32`) through `go-appkit/cqrs` → `go-cqrs-lite/metaengine/sqliteengine/v4` → `modernc.org/sqlite v1.61.1` (template go.mod, indirect). No cqrs module requires go-atomic-write (the mod-graph edge list is exhaustive above), so even with `-tags events` the binary never reaches it.
+- **Candidate requirers ruled out by grep**: go-flightrecorder (in the graph at v0.2.1) has zero go-atomic-write references in go.mod/go.sum/Go source; go-health-dashboard references it in docs only (an archived status file models a future feature on it), no graph edge; go-cqrs-lite's library modules (event/v4, snapshot/v4, sqliteengine/v4, ...) do not require it. go-cqrs-lite does use it directly, but only in its dev tools, which are separate modules outside this template's chain: `cmd/cqrs-upgrade/v4/util.go:6` (direct require, `cmd/cqrs-upgrade/v4/go.mod:7`) and `cmd/cqrs-lint/v4/baseline_file.go:13`, so user source files cannot be half-written by those tools (routed in go-cqrs-lite `TODO_LIST.md:3093`, executed per `docs/status/2026-11-22_18-47_fleet-libs-plan-execution-w1-w4-partial.md:19`).
+
+## Capability inventory
+
+| Capability | Status | Evidence | Note |
+|---|---|---|---|
+| Plain atomic byte write `Write` (fsync + rename) | Not applicable | `atomicwrite.go:17-29`; template .go files contain zero `os.WriteFile`/`os.Create`/`os.OpenFile` (rg, 0 hits) | Archetype writes nothing; the only fleet write path uses `WriteFunc` instead. |
+| Streaming atomic write `WriteFunc` (64KB buffered callback) | Partially used | `atomicwrite.go:125-137`; sole fleet call site `samber-do-auditlog/plugin.go:246`, surfaced by cmdguard `auditlog.go:154-161` | Mediation is complete and free for adopters (`WithAuditLog` + export `Path`), but dormant: template enables neither, and the linker drops the package (0 nm symbols). |
+| Crash durability discipline (file fsync before rename, directory fsync after) | Partially used | `stage.go:88` (`file.Sync()`), `rename_unix.go:11-18` (`atomicRename` + `syncDir`), README "How it works" steps 3/6 | Inherited automatically by the mediated export path; dormant with it. |
+| Temp-file hygiene (unique `crypto/rand` staging, cleanup on all failures, parent `MkdirAll`) | Partially used | `stage.go:39-68` (`tempPathFor`, `randomSuffix`, `parentDirPerm` 0o755), `stage.go:150-152` + `commit.go:67-76` (cleanup); MkdirAll is the v0.7.0 fix (CHANGELOG 0.7.0, mr-sync ENOENT incident) | Same mediated path; the v0.7.0 parent-dir fix is precisely the class an adopter's first audit export into a fresh directory would hit. |
+| TOCTOU-verified writes (`WriteVerified`/`WriteFuncVerified` + `Fingerprint` + flock + `ErrConcurrentModification`) | Not applicable | `atomicwrite.go:65-77,167-179`, `commit.go:20-61`, `fingerprint.go:13-46`; zero `*Verified` call sites anywhere in the template's chain (mediator uses unverified `WriteFunc`) | The mediated export is a single-writer end-of-run snapshot; the template has no read-modify-write file cycle to protect. Adopter story: config-file writers (README "Use cases"). |
+| Idempotent `WriteIfChanged` (no write, no mtime bump on identical content) | Not applicable | `atomicwrite.go:91-116` | Nothing is re-written on re-run. Adopter story: adopters adding config dumps or codegen (README.md:120-137). |
+| Explicit-permission writes `WriteWithPerm`/`WriteFuncWithPerm` (no chmod window) | Not applicable | `atomicwrite.go:42-54,151-163` (the latter is the v0.7.0 addition) | Only matters for permission-tight artifacts; lib's own TODO shows the pattern (CRM journal export 0600, consumer half open). Mediated exports are reports where default/preserved modes are fine. |
+| Cross-process file locking (gofrs/flock, flock(2)/LockFileEx) | Not applicable | `commit.go:36-44` | Only engages inside the `*Verified` commit path, which nothing in the chain uses. |
+| Windows rename correctness (retry on ACCESS_DENIED/SHARING_VIOLATION, errno by value) | Not applicable | `rename_windows.go:13-54`; compile trap fixed in v0.5.1 (CHANGELOG) | POSIX service archetype (systemd/sd_notify spine). Untargeted, though inherited transitively by any adopter who cross-compiles; whether any adopter does is UNVERIFIED. |
+| File-mode preservation (existing mode, 0o644 default) | Not applicable | `stage.go:16-32` | Follows from zero writes. |
+| Error contract (sentinel `ErrConcurrentModification`, `%w` wrapping, wrapped path context) | Not applicable | `commit.go:13`, README "Error contract" | No template code handles these errors; the mediator already re-wraps (`plugin.go:248`). |
+| Durability for the events.db journal (`-tags events` leg) | Not applicable | `internal/events/events.go:32` DSN; `modernc.org/sqlite v1.61.1` indirect; no cqrs-module graph edge to go-atomic-write | SQLite owns journal/WAL durability for `events.db`; wrapping a live database file in rename-atomicity would corrupt it. Correct exclusion, not a gap. |
+
+Scoring: N=12 rows, 9 Not applicable, A=3, all three Partially used (0.5 each), Σ=1.5, score = round(100 × 1.5 / 3) = 50.
+
+## Gaps and opportunities
+
+1. **Preset D4 "atomic file write" battery still unwired (the one real lever)** [PRESET-UPSTREAM]. What the lib offers: the whole one-call API (README API table; `Write`/`WriteFunc`/`WriteIfChanged`). What the template does instead: nothing, correctly (zero file writes, grep evidence). Impact: the first adopter that persists local state (config dumps, snapshot sidecars, cache files, appkit's planned sqlite ops-kit lease/backup/ledger, go-appkit `TODO_LIST.md:122` W4) will otherwise hand-roll `os.WriteFile` and reintroduce exactly the partial-write and lost-update bugs the library exists to kill. Sketch, inside the future appkit battery:
+   ```go
+   import atomicwrite "github.com/larsartmann/go-atomic-write"
+
+   func (b *Backup) Dump(path string, render func(io.Writer) error) error {
+       return atomicwrite.WriteFunc(path, render) // fsync + atomic rename + parent MkdirAll (v0.7.0)
+   }
+   ```
+   Stays demand-gated per the appkit owner ruling; when it fires, the floor is ≥ v0.5.1 (Windows syscall trap, gap-analysis doc:382) and v0.6.2+ is what the fleet already carries.
+2. **The free crash-safe audit-log export is undiscoverable from the template** [TEMPLATE, docs-only]. What exists: cmdguard's `WithAuditLog` + `ExportAuditLog(..., Path: ...)` writes reports through `atomicwrite.WriteFunc` (citations above). What the template does: its README/docs never mention the capability, so adopters do not know their CLI shell already ships atomic file writes. Impact: low but nearly free (one sentence in the batteries/docs section, no code, no dependency). Sketch:
+   ```markdown
+   Audit-log exports (`v5.WithAuditLog` + `v5.ExportAuditLog` with a `Path`) are written
+   crash-safe (temp file + fsync + atomic rename) via go-atomic-write; off by default.
+   ```
+3. **Direct template use of any write API** [NOT-NOW]. The archetype writes nothing (verified); adding a write path to justify a graph dependency would invert the dependency logic. Revisit per adopter the moment a real file artifact appears; the library is one `go get` away and already in the graph via cmdguard.
+4. **events.db journaling via go-atomic-write** [NOT-NOW]. Wrong tool: `modernc.org/sqlite` provides its own journal/WAL durability for `events.db` (`internal/events/events.go:32`); rename-atomicity over a live DB file corrupts it. The lib's own "when not to use" guidance agrees (docs shipped in v0.6.2, CHANGELOG).
+
+## Should the archetype adopt or wire more?
+
+No. For a template whose adopters re-clone rather than merge, the default binary should keep writing zero files; every disk artifact an adopter adds is their domain decision, and the right home for the shared primitive is the appkit preset (D4, gap 1), not template-local code. The events skeleton is the model for optional weight, and it correctly does NOT need this library: its `events.db` durability is SQLite's job. What does belong at template level is knowledge, not code: the one-line docs note (gap 2) that audit-log exports are already crash-safe, plus a pointer in adopter docs that first local-state writes should use go-atomic-write. Wiring anything heavier (a state-dump endpoint, a cache writer) into the default binary would add surface no CRUD adopter asked for.
+
+## Version currency
+
+Pin v0.6.2 (indirect) vs latest tag v0.7.0 (2026-11-23, released the day of this audit): normal fleet-bump lag, not neglect. The v0.6.2 → v0.7.0 Go-module delta is small: **Added** `WriteFuncWithPerm(path, fn, perm)` (`atomicwrite.go:151`, streaming writes with explicit mode, no chmod window); **Fixed** missing-parent-directory creation on every write entrypoint (`stage.go:40`, `MkdirAll` 0o755; found via mr-sync caches ENOENT-ing for weeks, CHANGELOG 0.7.0); plus a deterministic temp-path collision test and website/CI work (landing redesign, sitemap gate, docs for the `*Perm` variants). `[Unreleased]` is empty ("Nothing yet"). This bump is NOT the template's to make: the pin is indirect and the true requirer is samber-do-auditlog, whose go.mod still pins v0.6.2 at its HEAD (v0.12.3-15-g268feb4, `samber-do-auditlog/go.mod:12`); cmdguard's go.mod also still lists v0.6.2 indirect at HEAD. So samber-do-auditlog must bump first, cmdguard (and the cqrs-lite dev tools) ride along, and the template's indirect pin resolves on the next `go mod tidy` after the next cmdguard/appkit train. Since nothing executes, the drift has zero runtime effect on this template today; the MkdirAll fix only becomes live for an adopter who enables audit-log export into a fresh directory after the train lands.
+
+## Risks
+
+None found for this template: the package is not even linked into the default binary (nm evidence), so neither API misuse nor library bugs can manifest. Checked and clean anyway: pin v0.6.2 is above the v0.5.1 floor (versions below it break every `GOOS=windows` build transitively via the undefined `syscall.ERROR_SHARING_VIOLATION`, CHANGELOG v0.5.1; appkit D4 floor ≥ v0.5.1). For future adopters who activate writes, the lib's own honest inventory flags: crashed writes can leave stale `.<hex>.tmp` files (no sweeper, FEATURES.md "Stale temp-file self-cleanup" PLANNED); the Windows retry path has never executed on real Windows hardware (FEATURES.md PARTIALLY_FUNCTIONAL); umask semantics of the `*Perm` variants are undecided/undocumented (lib TODO_LIST). The lib's dependency weight is two modules (cespare/xxhash, gofrs/flock), both already in the template graph.
+
+## How to verify
+
+```bash
+git -C /home/lars/projects/go-atomic-write describe --tags          # v0.7.0-2-g38dbb9d
+git -C /home/lars/projects/go-atomic-write log -1 --format='%h %ci' # 38dbb9d 2026-11-23 ...
+git -C /home/lars/projects/go-atomic-write tag --list | sort -V | tail -1  # v0.7.0
+rg -n 'go-atomic-write' /home/lars/projects/go-service-template/go.mod     # :69, v0.6.2 // indirect
+cd /home/lars/projects/go-service-template && go mod why -m github.com/larsartmann/go-atomic-write
+# chain: cmd/app -> cmdguard/v5/pkg/cmdguard/v5 -> samber-do-auditlog -> go-atomic-write
+cd /home/lars/projects/go-service-template && go mod graph | grep ' github.com/larsartmann/go-atomic-write@'
+# exactly two requirers: cmdguard/v5@v5.1.0 and samber-do-auditlog@v0.12.3
+rg -n 'atomicwrite\.' /home/lars/projects/samber-do-auditlog --glob '*.go' # plugin.go:246 WriteFunc
+rg -n 'go-atomic-write' /home/lars/projects/samber-do-auditlog/go.mod      # :12 direct v0.6.2
+rg -n 'WithAuditLog|ExportAuditLog' /home/lars/projects/go-service-template --glob '*.go' | wc -l  # 0
+rg -n 'os\.WriteFile|os\.Create\(|os\.OpenFile' /home/lars/projects/go-service-template --glob '*.go' | wc -l  # 0
+rg -n 'go-atomic-write' /home/lars/projects/go-appkit --glob 'go.mod' --glob 'go.sum' --glob '*.go' | wc -l  # 0
+rg -n 'atomicwrite' /home/lars/projects/go-cqrs-lite/cmd/cqrs-upgrade/v4/util.go /home/lars/projects/go-cqrs-lite/cmd/cqrs-lint/v4/baseline_file.go  # dev tools only
+cd /home/lars/projects/go-service-template && go build -o /tmp/tpl ./cmd/app && go tool nm /tmp/tpl | grep atomicwrite | wc -l  # 0 (package linker-dropped)
+cd /home/lars/projects/go-service-template && go build -o /tmp/tpl ./cmd/app && go tool nm /tmp/tpl | grep -c samber-do-auditlog  # 441
+```
+
+## Submodule matrix
+
+| Module path | In template graph | How used | Latest tag | Note |
+|---|---|---|---|---|
+| github.com/larsartmann/go-atomic-write | Yes, indirect (go.mod:69, via cmdguard/v5 v5.1.0 → samber-do-auditlog v0.12.3) | Module graph only: sole fleet call site is samber-do-auditlog's export path (dormant for this template); package is dead-code-eliminated from the default binary | v0.7.0 | Single module: one go.mod at the repo root, no submodules. The template repo itself is also single-module (one go.mod), so there is exactly one pin to track, and it is not the template's to move. |
