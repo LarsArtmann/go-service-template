@@ -1,0 +1,166 @@
+# go-health — utilization review (go-service-template)
+
+| Reviewed | 2026-11-23 |
+|---|---|
+| Library | github.com/larsartmann/go-health (single module; `testdata/httputil-interop` and `tools/doanalyzerv2` are non-publishable fixture/tool modules) |
+| Version audited | v0.10.0-5-g3ca6644 (3ca6644, 2026-11-20) |
+| Template pin | v0.10.0 (indirect via the preset chain; recorded in the template's own `go.mod:101`) |
+| Latest tag | v0.10.0 |
+| Adoption score | 36/100 (low) — 5 of 14 applicable capabilities leveraged |
+| Verdict | The lifecycle half (three probes, background cache, drain flip, dashboard bridge) is mediated superbly and verified live; the semantic half (checks, criticality, identity, hooks) is dormant: the template registers zero checks and the preset structurally cannot mark one critical, so readiness can never 503 on a failing dependency. |
+
+## Verdict
+
+Not used to the max, and most of the gap is not the template's to fix. Every template binary serves the full three-probe surface (`/healthz` `/readyz` `/startupz` plus the dashboard at `/health`) with zero template code, the five-phase drain flips `/readyz` to 503 through go-health's two-phase shutdown API (verified live, below), and the dashboard bridge rides the probe's cache accessors at probe cadence. But the library's actual payload, checks and their critical/non-critical classification, is empty: the template passes no `HealthChecks` (`internal/app/service.go:48-52`), and even if it did, the preset calls `health.NewProbe(cfg.HealthChecks)` with no options (`go-appkit/preset/preset.go:109`), so no check could ever be critical and a failing dependency would leave readiness at 200 (warn). "Max" for this archetype means: the preset learns to pass health options (criticality above all), stamps or blanks the probe's version route (a verified boot panic today in the `NoDashboard` path), and the template gains a four-line documented example of registering a domain check. One verified hard finding: preset v0.1.1 + `NoDashboard: true` + go-health resolved at v0.10.0 panics at boot (empirically reproduced; the default dashboard path is unaffected).
+
+## What the template uses today
+
+All usage is mediated; the template's 7 files import go-health zero times (verified: `rg -l 'go-health' /home/lars/projects/go-service-template --glob '*.go'` is empty; only `go.mod:101`, `AGENTS.md:29`, `CHANGELOG.md:88` mention it).
+
+- **Three-probe HTTP surface** (PRESET-MEDIATED): preset builds the probe from the named-check map (`preset/preset.go:109` → `go-appkit/health/probe.go:63-69` → go-health `NewChecks`, `checks.go:44`) and mounts via `health.Mount(svc.Mux, probe, WithDashboard())` (`preset/preset.go:111`, dashboard opts `preset.go:232-238`). With the dashboard on, the dashboard registers the kubelet routes from the probe's own handlers (`go-health-dashboard/handlers.go:310-312`: `routes.Liveness/Readiness/Startup` → `d.probe.LivenessHandler()` etc.). Verified live: `/healthz` `/readyz` `/startupz` all return 200 `{"status":"pass",...,"checks":{}}`.
+- **Readiness flip during drain** (PRESET-MEDIATED): core's five-phase shutdown (`go-appkit/service.go:248-253`, code at `:274` ready-flip, `:282` DrainHooks, `:305` listener close, `:321` ShutdownHooks) runs the preset's DrainHook (`preset/preset.go:75-79`) → `Mounted.Drain()` (`go-appkit/health/mount.go:222-224`) → go-health `Probe.MarkShuttingDown()` (`lifecycle.go:210`), whose effect is served by the ReadinessHandler's live shutdown overlay (`handlers.go:85-88`: even a stale cached response becomes `shutting_down:true`, 503). Verified live: 0.7s after SIGTERM, `/readyz` returned HTTP 503 `{"status":"fail","shutting_down":true,...}` during the 5s drain window; the log shows `ready_flip → drain_hooks → drain_wait(5s) → listener_close → shutdown_hooks`.
+- **Probe lifecycle and background cache** (PRESET-MEDIATED): StartHooks run `Mounted.Start` (`preset/preset.go:72-74` → `mount.go:160-175` → `Probe.Start`, `lifecycle.go:32`), whose initial synchronous batch arms the 1s cache loop; `/readyz` serves the cached view (verified: response carries the batch `timestamp`, O(1) read; `handlers.go:196-206`).
+- **Startup probe** (PRESET-MEDIATED): `/startupz` serves `Probe.StartupHandler` (`handlers.go:108-142`). With zero critical services the latch passes immediately (pinned by go-health's own `handlers_startup_test.go:124`); verified live (200 from the first request). Semantics degenerate correctly for a check-less probe.
+- **Dashboard bridge over the cache accessors** (PRESET-MEDIATED): the dashboard polls `probe.CachedResponse()` sanitized through go-health's `CoerceValidUTF8` (`go-health-dashboard/dashboard.go:226-228`) and derives its push cadence from `probe.RefreshInterval()` (`dashboard.go:209-218`); the SSE live view at `/health/sse` (`routes.go:33`) serves `text/event-stream` datastar patches (verified live, 3s capture).
+- **Zero service-owned checks** (GRAPH-ONLY for the check payload): the template registers no checks (`internal/app/service.go:48-52` passes only `Addr`, `LogLevel`, `Version`; `HealthChecks` stays nil per `preset/config.go:51-54`), and the preset itself adds no infrastructure checks either: the probe's check set in the default binary is empty (verified live: `"checks":{}` on every endpoint). The fleet's real adopters register domain checks via the constructor path (`health.New(injector, WithCriticalServices(...))`, "all 14 direct consumers" per `go-health/docs/adoption-matrix.md`); the preset-mediated path is the outlier.
+- **Not wired even by the mediator**: `Probe.Shutdown` and `Mounted.Shutdown` are never called by the preset (its ShutdownHooks contain only the otel provider, `preset/preset.go:80-82`), contradicting the health module's own contract (`mount.go:226-236` says wire `mounted.Shutdown` into ShutdownHooks). Consequence verified indirectly: `shutdown_hooks` phase completed in 1.82µs (nothing ran); the go-health refresh loop and dashboard pusher goroutines run until process exit. Harmless for a crash-only deploy, wrong for embedding or tests.
+- **`WithCriticalServices`, `WithInstanceID`, `WithEvaluationHook`, `WithAllowedMethods`, version stamping, aggregate, federation, checks batteries, recorder paths** (ABSENT): no field of `preset.Config` reaches any go-health Option (`preset/config.go:30-73` lists every field; `NewProbe` at `preset.go:109` receives none), and the preset exposes no out-field to the probe or `Mounted` (unlike `RealtimeConfig.Hub`, `preset/config.go` real-time section). Graph presence with zero wiring is not usage.
+
+## Capability inventory
+
+| Capability | Status | Evidence | Note |
+|---|---|---|---|
+| Three-probe HTTP surface (liveness/readiness/startup handlers, method-qualified DefaultRoutes) | Fully leveraged | `preset/preset.go:109-111`; dashboard `handlers.go:310-312`; verified live 200/pass on all three | Liveness dependency-blind, readiness roll-up, startup latch all served from the probe |
+| Drain integration (MarkShuttingDown two-phase, stale-cache 503 overlay) | Fully leveraged | `preset/preset.go:75-79` → `mount.go:222-224` → go-health `handlers.go:85-88`; verified live 503 `shutting_down:true` mid-drain | Flips in lockstep with core's own ready probe in drain phase 2 |
+| Probe lifecycle (Start initial batch + 1s background cache) | Fully leveraged | `preset/preset.go:72-74` → `mount.go:160-175` → `lifecycle.go:32` | O(1) readiness reads, verified via served `timestamp` |
+| Cache read accessors for bridges (CachedResponse, RefreshInterval, CoerceValidUTF8) | Fully leveraged | dashboard `dashboard.go:209-218,226-228`; SSE verified live | The dashboard is the fleet's designated consumer of these seams |
+| Per-check metadata (StatusSince, duration_ns via NewChecks self-timing) | Partially used | appkit `health/probe.go:18-24` documents duration_ns through NewChecks; live responses show `"checks":{}` | Mechanism active but dormant: zero checks to carry metadata |
+| Named-check registration (preset HealthChecks → NewChecks/CheckFunc) | Missed opportunity | hook exists (`preset/config.go:51-54`); template passes nothing (`internal/app/service.go:48-52`); live `checks:{}` | The one extension point the preset does surface, unused and untaught |
+| Critical/non-critical classification (WithCriticalServices, typed spellings) | Missed opportunity | `preset.go:109` calls NewProbe with zero options; no preset Config field exists | Structurally unreachable: a failing preset-registered check yields warn (readiness 200), never 503 |
+| Build identity (WithVersion, VersionHandler, Routes.Version mount) | Misused | probe unstamped (`preset.go:109`); appkit `mount.go:70` defaults to `health.DefaultRoutes()` whose Version field panics on unstamped probes (go-health `handlers.go:159-165`); empirically reproduced: `NoDashboard:true` + go-health v0.10.0 panics inside `preset.New` | Default dashboard path dodges it only because `mount.go:116-120` defers registration to the dashboard; `/version` is served by appkit core instead (`go-appkit/service.go:100`, verified `{"version":"dev"}`) |
+| Probe teardown (Shutdown, Mounted.Shutdown) | Missed opportunity | preset ShutdownHooks wire only the otel provider (`preset/preset.go:80-82`); `mount.go:226-236` documents the wiring the preset skips | Refresh loop + SSE pusher run to process exit; verified 1.82µs shutdown_hooks phase |
+| Programmatic API (Status/Alive/Ready/AwaitReady/Healthz/HealthCheck/AsShutdowner) | Partially used | `mount.go:250-256` exposes `Mounted.Ready` and `:258-263` `Probe()`; preset passes only consumer `ReadyCheck` (`preset.go:58`) and the `Mounted` value is private | Present in the mediator's API, dropped by the preset; core's `/health/ready` family is disabled in the default binary (dashboard owns `/health`, `preset.go:88-89`) |
+| Instance identity (WithInstanceID, branded InstanceID) | Missed opportunity | zero wiring anywhere in the chain (rg over appkit + template) | Multi-replica attribution would need a preset passthrough; only fleet consumer is the dashboard example (adoption-matrix) |
+| Observability seam (WithEvaluationHook + Prometheus recipe) | Missed opportunity | not wired by preset or dashboard default; dashboard's `Observe` is documented opt-in (`dashboard.go:396-411`) | Metrics leg exists separately via otel; the hook is the zero-dependency alternative |
+| Configured-off checks (health.Off, `"status":"off"`) | Missed opportunity | `doc.go:56-74`; zero usage | The perfect teaching pattern for optional legs (events skeleton), untaught |
+| Method-set guard (WithAllowedMethods, HEAD for LBs) | Missed opportunity | `doc.go:132-136`; not wired | Minor: kubelet is GET-only |
+| Live mode + flood throttle (WithRefreshInterval(0), WithLiveThrottle) | Not applicable | `doc.go:126-130` | N/A reason: background cache is the correct default for kubelet/LB polling cadence; live mode targets low-traffic/dev shapes |
+| checks batteries (Disk/Memory/HTTP/Database) | Not applicable | `checks/checks.go:27-127` | N/A reason: thresholds are policy (README:568-570) and the archetype has no dependencies to check; shipping one would fabricate signal |
+| aggregate sub-package | Not applicable | `aggregate/aggregate.go` | N/A reason: merges several in-process probes (multi-tenant shape); the preset mediates exactly one probe |
+| federation sub-package | Not applicable | `federation/federation.go` | N/A reason: hub deployment shape (health.home.lan); belongs to the dashboard's `cmd/health-hub`, not a service archetype |
+| Injector/recorder constructor family (New, NewWithRecorder, ChainRecorders, audit + flightrecorderhealth) | Not applicable | `probe.go:22-32`, `recorder.go` | N/A reason: preset path owns batch execution via the named-check map; recorder consumers are told to use `health.New` directly (`appkit health/doc.go:53-71`) and flightrecorderhealth is not preset-mediated |
+| httputil interop recipes + `testdata/httputil-interop` fixture | Not applicable | `docs/httputil-integration.md`, fixture go.mod | N/A reason: composition recipes for direct httputil consumers; the preset already owns that composition, and the fixture is the lib's own CI proof |
+
+Scoring: N=20, N/A=6, A=14. Fully leveraged 4×1 + Partially used 2×0.5 = 5.0. Score = round(100 × 5/14) = 36 (low band).
+
+## Gaps and opportunities
+
+1. **The preset cannot pass a single go-health Option; criticality is the headline loss.** What the lib offers: `WithCriticalServices` gates readiness 503 on named checks (README:270-272), and all 14 direct fleet consumers use it (`docs/adoption-matrix.md` row 1). What the template gets instead: `health.NewProbe(cfg.HealthChecks)` with zero options (`preset/preset.go:109`), so every preset-registered check is non-critical and a failing dependency degrades to warn, readiness stays 200, the pod stays in rotation (go-health `handlers.go:90-93`). Impact: high, it silently inverts the meaning of readiness for every preset adopter who registers a check. Concrete sketch, one field plus one line:
+
+   ```go
+   // preset/config.go
+   HealthOptions []health.Option // forwarded verbatim; WithCriticalServices lands here
+
+   // preset/preset.go:109
+   probe := health.NewProbe(cfg.HealthChecks, cfg.HealthOptions...)
+   ```
+
+   This single passthrough also unlocks `WithInstanceID`, `WithEvaluationHook`, `WithAllowedMethods`, and a future `WithVersion` stamp. `[PRESET-UPSTREAM]`
+2. **Verified boot panic: `NoDashboard: true` panics under go-health v0.10.0.** What the lib offers/does: v0.10.0's `DefaultRoutes()` sets `Version: "GET /version"` and `RegisterRoutes` panics on an unstamped probe (CHANGELOG v0.10.0; `handlers.go:159-165`), the honest-stamp contract. What the mediator does: `mount.go:70` defaults to `health.DefaultRoutes()` and the preset never stamps the probe. Reproduced in a /tmp sandbox with the template's exact resolution (preset v0.1.1, appkit/health v0.3.2, go-health v0.10.0): `panic: health: Routes.Version mounts the build-version endpoint, but the probe has no build stamp` at `go-health@v0.10.0/handlers.go:160` ← `health@v0.3.2/mount.go:122` ← `mount.go:105` ← `preset@v0.1.1/preset.go:111`. The same sandbox at go-health v0.8.1 (appkit's own floor) boots fine, so this is pure version skew: appkit/health v0.3.2 still floors go-health v0.8.1 (`health/go.mod:9`) while the template graph resolves v0.10.0. Impact: medium (opt-in path, but a hard crash at boot in the documented slim-down path). Fix: appkit/health stamps the probe from the caller's version or blanks `Routes.Version`, plus re-pin the module to v0.10.0 (the go-health roadmap's own "consumption wave" next step, ROADMAP.md:123-137). `[PRESET-UPSTREAM]`
+3. **Probe teardown never wired.** What the lib offers: `Probe.Shutdown` stops the refresh loop; `Mounted.Shutdown` additionally drains SSE clients (`mount.go:226-248`). What the preset does instead: ShutdownHooks contain only `shutdownProvider` (`preset/preset.go:80-82`); verified live `shutdown_hooks duration=1.82µs`. Impact: low for crash-only deploys, real for tests and embedding (goroutines and a ticking loop outlive `svc.Run`). Fix is one closure in the same append. `[PRESET-UPSTREAM]`
+4. **Nobody teaches adopters where domain checks go.** What the lib offers: the named-check surface is one map entry away (`appkithealth.CheckFunc`, `appkit health/probe.go:10-16`). What the template does instead: `Serve` passes only Addr/LogLevel/Version (`internal/app/service.go:48-52`); README documents the endpoints (`README.md:75-76`) but never the registration seam; internal/ has zero health references (verified by grep). The hook verifiably exists (`preset/config.go:51-54` `HealthChecks map[string]health.CheckFunc`, "checks can be added later by the health module's own API"). Impact: high pedagogically, this is the archetype's job. Concrete sketch (comment or live, docs-grade):
+
+   ```go
+   svc, err := appkitpreset.New(appkitpreset.Config{
+       Addr: cfg.Addr, LogLevel: appkit.LogLevel(cfg.LogLevel), Version: Version,
+       // HealthChecks: map[string]appkithealth.CheckFunc{
+       //     "database": func(ctx context.Context) error { return db.PingContext(ctx) },
+       // },
+   })
+   ```
+
+   Caveat to state in the same comment: until Gaps 1 lands, preset-registered checks are warn-only (visibility on the dashboard, never a readiness 503). `[TEMPLATE]` (documented example plus a README paragraph; code the adopter uncomments; the alternative, `[NOT-NOW preset-mediation-enough]`, is defensible only after Gap 1 makes the example honest, and even then a four-line comment is cheaper than every adopter re-finding the field).
+5. **SSE vs WriteTimeout, from the go-health side: N/A by construction, cross-report agreement.** go-health has no SSE/long-poll surface at all (verified: `rg -in 'text/event-stream|Server-Sent|long-poll|long poll'` over non-test sources returns nothing; the README's "What go-health is NOT" places rendering in go-health-dashboard, README:234-243). Its own handlers are bounded JSON request/response, immune by design: the worst case is one batch at the default 5s `WithTimeout` (doc.go:191-201), well under the 30s `WriteTimeout`. The stream that dies is the dashboard's `/health/sse` through appkit's server; the mechanism and mitigation are documented at `go-appkit/health/doc.go:124-129` ("degrades but works; set WriteTimeout to NoTimeout"). This report agrees with `docs/review/libs/go-appkit.md` Gaps #6/Risks and `docs/review/libs/go-sse.md` Gaps #1/Risks on the mechanism (http.Server write deadline cuts long-lived streams; heartbeats do not help) and the routing: the preset applies `NoTimeout` when an SSE-serving surface is on, or documents the pairing. `[PRESET-UPSTREAM]`
+6. **The dashboard is unauthenticated on the service port by default.** go-health's own doctrine keeps diagnostics off unauthenticated kubelet endpoints (README:234-243, docs/probe-threat-model.md); the hardened posture exists (`DashboardHardenedPreset`, `mount.go:291-296`) but no preset Config field reaches it, and the template's `/health` (HTML, SSE, error text from checks) serves on `APP_ADDR` with no auth (verified live). Impact: medium, adopter-dependent (internal vs public addr). Routing: surface dashboard options through the preset; the template itself should not grow auth code (the security leg is the owner of that). `[PRESET-UPSTREAM]`
+
+## Should the archetype adopt or wire more?
+
+Default binary: no new go-health code belongs there. The posture (thin composition root, all health wiring preset-mediated) is correct, and every capability the template could add locally (a version stamp, a check, an evaluation hook) is something the preset could mediate for all adopters, which is the owner's collective-improvement constraint. The one template-local addition that survives that test is the documented example from Gaps 4: a commented `HealthChecks` entry in `Serve` plus a README paragraph, the same docs-scaffold pattern as the build-tag-gated events skeleton, because the check functions themselves are inherently adopter-owned domain knowledge the preset can never know. Docs/examples: that example, one line naming the warn-only caveat, and one line pointing at `preset.Config.NoDashboard` (with the Gap 2 panic caveat until fixed). Must stay out: checks batteries (policy thresholds), aggregate/federation (wrong shape for a single-probe service), recorder/audit paths (no DI container in the archetype; flightrecorderhealth is deliberately not preset-mediated), and any local SSE/version-handler duplication of what core or the dashboard already serve. A build-tag gate is unnecessary here: health is spine, not optional weight.
+
+## Version currency
+
+The pin is current: template go.mod records `github.com/larsartmann/go-health v0.10.0 // indirect` (`go.mod:101`), which equals the latest tag. The resolution chain (verified via `go mod graph`): the template's own requirement (recorded by the templ-pairing ritual, `AGENTS.md:29`) and `go-health-dashboard@v0.13.3 → go-health@v0.10.0` pull it up over the stale floors `go-appkit/health@v0.3.2 → go-health@v0.8.1` (`health/go.mod:9`) and `preset@v0.1.1 → v0.8.1`. Who pins what: appkit health v0.3.2 floors v0.8.1 and dashboard v0.12.2 (`health/go.mod:9-10`); dashboard v0.13.3 requires go-health v0.10.0 (`git show v0.13.3:go.mod`). What is unreleased (5 commits past tag, `git log v0.10.0..HEAD`): three flake.lock refreshes, one CI workflow/toolchain version bump, and one docs addition (the v0.10.0 release session status report, `docs/status/2026-11-04_20-41_v0100-release-default-version-endpoint-and-honest-stamp-contract.md`); CHANGELOG `[Unreleased]` says "Nothing yet" in every section. The template feels none of it (no API, no behavior change). The v0.8.1 → v0.10.0 gap the template DID absorb invisibly through MVS: v0.9.0's breaking renames (branded `InstanceID`, `Check.Since` → `StatusSince`, wire-compatible) and v0.10.0's method-qualified `DefaultRoutes` plus the unstamped-probe panic; appkit/health v0.3.2 touches none of the renamed symbols (verified by grep), which is why the mix compiles, and the one behavioral collision is Gaps 2. The bump is not the template's to make: the pin rides the appkit train (a health v0.3.3+ re-pin to v0.10.0 is the go-health roadmap's own stated next step, ROADMAP.md:123-137), and the template's ritual forbids hand-editing pins between stamps. Coming eventually per TODO_LIST:61: the `WithCriticalServices(...ServiceName)` typed cut, blocked on owner go/no-go, breaking 8 constructor repos plus the 2 bridges mechanically.
+
+## Risks
+
+- **Warn-only readiness (misuse-shaped mediation)**: any adopter who registers `HealthChecks` through the preset today gets dashboard visibility but never a readiness 503; the failure mode is silent (the dashboard shows warn green-ish, the kubelet keeps routing). Detail in Gaps 1.
+- **Boot panic in the `NoDashboard` path under go-health ≥ v0.10.0** (empirically verified; Gaps 2). The template does not set `NoDashboard`, so its default binary is unaffected until someone takes the documented slim-down path.
+- **Identity split**: the probe's JSON omits `version` (unstamped, verified live: no `version` field on `/readyz`) while `/version` (appkit core, `service.go:100`) serves `dev`; correlation across the two surfaces rests on the core endpoint alone.
+- **Unauthenticated `/health` dashboard on the service port** (Gaps 6); go-health's threat-model doc is the reference posture.
+- **One-way drain latch**: after `Mounted.Shutdown`, readiness stays 503 across a restart (appkit `mount.go:233-236`; go-health ADR-009). Irrelevant to the template's fresh-process deploys, a footgun for anyone embedding the service in a test harness that reuses the probe.
+- **Copy-paste skew hazard**: docs and examples that show `WithInstanceID("pod-abc")` or `check.Since` no longer compile against the graph's v0.10.0 (v0.9.0 renames); none of the mediated code paths use those symbols (verified), but adopter code copied from older fleet repos will.
+- Checked and clean: no deprecated `SanitizeResponse` usage anywhere in the mediation chain (the dashboard already calls `CoerceValidUTF8`, `dashboard.go:227`); no `WithHealthRecorder` mis-wiring possible on the preset path (constructor-owned batches, and go-health v0.8.0+ fails it loudly at Start); panic-hardening of checks is inert with zero checks.
+
+## How to verify
+
+```sh
+# Version facts
+git -C /home/lars/projects/go-health describe --tags          # v0.10.0-5-g3ca6644
+git -C /home/lars/projects/go-health log --oneline v0.10.0..HEAD   # 5 commits: flake/CI/docs only
+sed -n '1,20p' /home/lars/projects/go-health/CHANGELOG.md     # [Unreleased]: Nothing yet
+
+# Pins and graph
+grep -n 'go-health' /home/lars/projects/go-service-template/go.mod            # :101 v0.10.0 indirect
+grep -n 'go-health' /home/lars/projects/go-appkit/health/go.mod               # :9 v0.8.1 floor (stale edge)
+git -C /home/lars/projects/go-health-dashboard show v0.13.3:go.mod | grep go-health   # v0.10.0
+cd /home/lars/projects/go-service-template && go mod graph | grep 'larsartmann/go-health@'
+
+# Preset mediation (file:line citations)
+rg -n 'NewProbe|health.Mount|startMounted|drainMounted|shutdownProvider|systemd.Install' \
+   /home/lars/projects/go-appkit/preset/preset.go            # :72-82,:101,:109,:111
+rg -n 'MarkShuttingDown|DefaultRoutes|probe.RegisterRoutes|func \(m \*Mounted\) Shutdown' \
+   /home/lars/projects/go-appkit/health/mount.go             # :70,:115-123,:222-224,:237
+rg -n 'ready_flip|runDrainHooks|readyProbe.Store' /home/lars/projects/go-appkit/service.go  # :248-322
+rg -n 'Routes.Version|func DefaultRoutes|shuttingDown.Load' /home/lars/projects/go-health/handlers.go  # :37-44,:85-88,:158-165
+
+# go-health has no SSE surface (the 30s WriteTimeout cut cannot originate here)
+rg -in 'text/event-stream|Server-Sent|long-poll|long poll' /home/lars/projects/go-health \
+   --glob '*.go' --glob '!**/*_test.go' --glob '!tools/**' --glob '!**/testdata/**'   # no hits (exit 1)
+
+# Verified boot panic (NoDashboard + v0.10.0), sandboxed outside all repos
+mkdir -p /tmp/hc && cd /tmp/hc && cat > go.mod <<'EOF'
+module hc
+go 1.27.4
+require (
+	github.com/larsartmann/go-appkit v0.12.0
+	github.com/larsartmann/go-appkit/preset v0.1.1
+)
+EOF
+cat > main.go <<'EOF'
+package main
+import ( "fmt"; appkitpreset "github.com/larsartmann/go-appkit/preset" )
+func main() {
+	svc, err := appkitpreset.New(appkitpreset.Config{Addr: "127.0.0.1:18099", NoDashboard: true, Version: "t"})
+	fmt.Println("New:", svc != nil, err)
+}
+EOF
+GOPROXY=off GOFLAGS=-mod=mod go get github.com/larsartmann/go-health@v0.10.0 github.com/larsartmann/go-health-dashboard@v0.13.3
+go run .   # panics: Routes.Version ... no build stamp (go-health handlers.go:160 via preset.go:111)
+
+# Live default-path verification (use a free port; 8080 is occupied on this machine)
+cd /home/lars/projects/go-service-template && go build -o /tmp/svc ./cmd/app
+APP_ADDR=127.0.0.1:18234 /tmp/svc serve & sleep 2
+curl -s -w '\n[%{http_code}]\n' 127.0.0.1:18234/healthz     # 200 pass, checks:{}
+curl -s -w '\n[%{http_code}]\n' 127.0.0.1:18234/version     # {"version":"dev"} (appkit core, not go-health)
+curl -s -N -m 3 127.0.0.1:18234/health/sse | head -c 120    # datastar-patch-elements events
+pkill -TERM -f '/tmp/svc serve'; sleep 0.7
+curl -s -w '\n[%{http_code}]\n' 127.0.0.1:18234/readyz      # 503 fail shutting_down:true (drain window)
+```
+
+## Submodule matrix
+
+| Module path | In template graph | How used | Latest tag | Note |
+|---|---|---|---|---|
+| github.com/larsartmann/go-health (root, incl. `aggregate`/`checks`/`federation` packages) | Yes: v0.10.0 indirect (`go.mod:101`) | Runtime, fully preset-mediated: NewChecks probe + lifecycle + drain via appkit/health v0.3.2; cache accessors + CoerceValidUTF8 via dashboard v0.13.3; sub-packages unused | v0.10.0 | Current; 5 infra/docs commits past tag; the appkit floor (v0.8.1) is the stale edge behind the verified NoDashboard panic |
+| github.com/larsartmann/go-health/testdata/httputil-interop | No | Fixture module proving the httputil composition recipes against the published release (its own go.mod header) | none (not publishable) | Lib-internal CI proof (`nix run .#interop`); replaces root with `../..` |
+| github.com/larsartmann/go-health/tools/doanalyzerv2 | No | Lib-author analysis tooling over the source tree | none (not publishable) | Dev tooling; local replace to go-design-smells |
