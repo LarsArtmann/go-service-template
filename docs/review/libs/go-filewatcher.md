@@ -1,0 +1,101 @@
+# go-filewatcher — utilization review (go-service-template)
+
+| Reviewed | 2026-11-23 |
+|---|---|
+| Library | github.com/larsartmann/go-filewatcher/v2 (single module, no submodules) |
+| Version audited | v2.5.0-7-g3c074ad (3c074ad, 2026-11-23) |
+| Template pin | ABSENT (not in go.mod at all: no direct require, no indirect entry, zero occurrences in go.sum; `go mod why -m github.com/larsartmann/go-filewatcher` answers "(main module does not need module ...)") |
+| Latest tag | v2.5.0 (2026-11-06) |
+| Adoption score | 0/100 (low), 0 of 1 applicable capabilities leveraged |
+| Verdict | Do not adopt into the archetype: this is tooling-side machinery (22 fleet consumer modules, none a preset-spawned service), and the one live service-side question, config hot-reload, is explicitly demand-gated by the fleet's own config design; restart is the posture. |
+
+This is an ADOPTION ANALYSIS, not a utilization audit: the library is entirely absent from the template's module graph (its own fsnotify dependency v1.10.1 IS in the graph indirectly, via koanf, but that is koanf's import, not go-filewatcher's presence). The score measures the near-empty set of applicable capabilities for a thin service archetype; the adopt/don't-adopt judgment carries the real weight.
+
+## Verdict
+
+Not used at all, and that is correct for this repo. go-filewatcher is a production-grade fsnotify wrapper: recursion, 20 filters plus AND/OR/NOT composition, 19 middleware, global and per-path debounce, gitignore-aware walks, inotify budget/ENOSPC resilience, polling fallback, self-heal, circuit breaker, Stats/Prometheus/OTel hooks. Every one of those features answers a question the template does not ask: a service archetype owns no watched directory at runtime. The only conceivable service-side pull is config hot-reload, and the fleet has already adjudicated that: go-appkit/config's README lists "Hot-reload/watch (battery F4, demand-gated)" as a non-goal until demand exists (`config/README.md` Non-goals), its `Loader[T]` exists precisely for the SIGHUP-reload shape (`config/config.go:92-94`), and the deployment story has no reload hook at all (`systemd/app.service` has no `ExecReload`; `Restart=on-failure` plus watchdog is the contract). "Max" here means: keep the default binary free of it (achieved), keep hot-reload out until battery F4 fires (achieved by explicit fleet decision), and add one docs sentence routing adopters with genuine watch needs (cert rotation, drop/spool dirs) to the library (the single small miss). The library itself is the healthiest kind of absent dependency: 15 tagged releases in ~7.5 months, 100% test pass with a >=85% coverage gate, race/fuzz/4-OS CI, an API stability policy, and 22 fleet consumer modules already dogfooding it.
+
+## What the template uses today
+
+- ABSENT: `go.mod` has no `go-filewatcher` entry in either require block and zero matches in `go.sum` (verified: `rg -c 'go-filewatcher' go.sum` prints 0).
+- ABSENT: no template source imports it (`rg -l 'filewatcher' .` over Go files matches nothing; the only mentions are this review series).
+- ABSENT (preset check): go-appkit does not reference it either (`rg -l 'go-filewatcher' /home/lars/projects/go-appkit` matches nothing), so no PRESET-MEDIATED usage exists.
+- GRAPH-ONLY adjacency, stated explicitly: `github.com/fsnotify/fsnotify v1.10.1 // indirect` IS in the template's go.mod, but it is koanf's file-provider import, reached only through the build-tag-gated events leg: `internal/events` -> `go-appkit/cqrs` -> `go-cqrs-lite/system/v4` -> `knadh/koanf/providers/file` -> fsnotify (`go mod why -m github.com/fsnotify/fsnotify`, verbatim path). koanf's provider does have a `Watch(cb)` method backed by fsnotify (provider `file.go:44,65` in the module cache), but go-cqrs-lite/system never calls it (zero non-test `Watch` matches in `go-cqrs-lite/system`), and go-appkit/config does not use koanf at all (declined in its design note). Graph presence with zero runtime wiring is NOT usage: nothing in the chain watches a file at runtime.
+- The surface a watcher would attach to is served read-once today: the config file layer is a single `os.ReadFile` + YAML/JSON decode + flatten at boot (`go-appkit/config/file.go:19-48`), invoked by `config.Load[Config]()` (`internal/app/service.go:40`) with the file layer itself still commented out (`internal/app/service.go:38`: "Add config.WithFile(...) when the service gains a file layer").
+
+## Capability inventory
+
+| Capability | Status | Evidence | Note |
+|---|---|---|---|
+| Core API: `New(paths, opts...)`, `Watch(ctx) <-chan Event`, `Add`/`AddRecursive`/`Remove`/`Close`/`Reset`, `WatchOnce` | Not applicable | lib `watcher.go` exports; template has no watched path, no runtime file-driven behavior of any kind |
+| Event model: `Event{Path, Op, Timestamp, IsDir, Size, ModTime, Hash}` with JSON + `slog.LogValuer` | Not applicable | lib `event.go`; nothing in the template consumes file events |
+| Debounce: `WithDebounce`, `WithPerPathDebounce`, exported `Debouncer`/`GlobalDebouncer` | Not applicable | lib `debouncer.go`; editor-save coalescing is a dev-tool concern, services have no watched files |
+| Filter DSL: 20 filters (extensions, globs, regex, size, age, gitignore, generated-code, content-hash) + `FilterAnd/Or/Not`, `FilterWithMeta` | Not applicable | lib `filter.go`, `filter_gogen.go`; no event stream to filter |
+| Middleware pipeline: 19 (logging, recovery, throttle, dedup, batch, circuit breaker, error batch/correlation/sanitization) | Not applicable | lib `middleware.go`; pipeline wraps event handlers the template does not have |
+| Resilience: `WithSelfHeal`, inotify budget + ENOSPC degraded mode, `WithPolling`/`WithPollInterval` (NFS/FUSE), symlink-cycle detection | Not applicable | lib `watcher_selfheal.go`, `watcher.go`, `watcher_walk.go`; large-tree and odd-filesystem concerns, absent here by design |
+| Filesystem compatibility: NFC normalization always-on, `WithCaseSensitivity`, `FilterCaseInsensitive/Sensitive` | Not applicable | lib `filesystem.go`, README "Filesystem Compatibility" | servers run ext4/XFS (case-sensitive, ASCII config paths); this machinery exists for macOS/Windows dev trees |
+| Observability: `Stats()`, zero-dep `PrometheusCollector`, zero-dep `OTelMiddleware` | Not applicable | lib `metrics.go`, `otel.go`; nothing to export metrics about; also OTel spans are root traces today (lib TODO_LIST v3 candidate) |
+| Health: `Healthy(ctx)` (matches go-health `CheckFunc`), introspectable `NewCircuitBreaker` | Not applicable | lib `health.go`, CHANGELOG 2.5.0 | the shape would wire into go-appkit/health (in the graph indirect), but there is no watcher to health-check |
+| Error taxonomy: 11 sentinels, typed `WatcherError` with codes/categories/stack, `IsPermanentError`/`IsTransientError`, `Errors()` channel | Not applicable | lib `errors.go`; template error contract is httpx classified errors, unrelated surface |
+| Generated-code detection: `FilterGeneratedCode` via gogenfilter (sqlc, protobuf, templ, mockgen, 13 more) | Not applicable | lib `filter_gogen.go`; dev-loop value (buildflow-style tooling), zero service runtime value; the template's committed `*_templ.go` files are a build choice, not a watch input |
+| Backpressure and type-safety DX: `EventChannelMode` (blocking vs DropOnFull), drop counters, phantom types (`EventPath`, `RootPath`, `DebounceKey`) | Not applicable | lib `options.go`, `phantom_types.go`; consumer-code ergonomics with no consumer |
+| Config hot-reload event source (the live question) | Not applicable | appkit config read-once at `config/file.go:22` (`os.ReadFile`); hot-reload is an explicit demand-gated non-goal (`config/README.md` Non-goals: "Hot-reload/watch (battery F4, demand-gated)"); `Loader[T]` already covers the SIGHUP-reload shape (`config/config.go:92-94`); `systemd/app.service` defines no `ExecReload`; preset has zero reload/SIGHUP wiring (rg across go-appkit non-test Go: nothing) | the fleet's actual reload story is: config is read once at boot, changes ship via restart (`Restart=on-failure`, `WatchdogSec=30s`); N/A is the fleet's deliberate, documented decision, not an oversight, see gaps 2-3 for the if-demand-fires routing |
+| Adopter routing: docs pointer for genuine service-side watch needs (TLS cert rotation, drop/spool directories) | Missed opportunity | `rg -ci 'filewatcher\|fsnotify\|file watch' README.md docs/` finds nothing | the one capability applicable to an archetype: a zero-weight pointer so an adopter whose service grows a watched directory reaches for the fleet library instead of raw fsnotify |
+
+Row count 14; Not applicable 13; applicable A = 1; Σ = 0 (one Missed opportunity scores 0); score = round(100 x 0/1) = 0, band low.
+
+## Gaps and opportunities
+
+Ranked by impact x ease (highest first).
+
+1. **Adopter-routing docs pointer** [TEMPLATE]. What the lib offers: a documented, pkg.go.dev-indexed, fleet-proven watcher (README quick start; 22 fleet consumer modules). What the template does instead: nothing; no doc mentions file watching, so an adopter adding a cert-watch or spool-dir feature discovers the fleet library by luck. Impact: low (genuine service-side watch needs are uncommon; every fleet consumer today is tooling-side, and the two appkit-overlapping consumers, index and Code-To-CV-Agent, use it for markdown/content watching, not service config); ease: trivial. Sketch: one line in README or docs/DOMAIN_LANGUAGE.md: "If your service must react to file changes (cert rotation, drop dirs), use github.com/larsartmann/go-filewatcher/v2; for config changes, restart, do not hot-reload (see docs/review/libs/go-filewatcher.md)."
+2. **Config hot-reload: keep out, and record why** [NOT-NOW + already-decided upstream + weight]. What the lib offers: a debounce-per-file event stream that would slot under a re-`Load` loop. What the template does instead: reads config once at boot (`internal/app/service.go:40`, appkit `config/file.go:22`). Impact of adding it: negative today; correctness risk (partially-applied config, logger/handler swap mid-request) for a benefit no fleet service has demanded. Evidence this is the fleet's own posture, not just this repo's: appkit config README Non-goals gates hot-reload behind demand ("battery F4"), its `Loader[T]` doc names SIGHUP as the intended repeat-load shape (`config/config.go:92-94`), and no unit or preset wires any reload (`systemd/app.service` has no ExecReload; rg over go-appkit preset/systemd non-test Go finds no SIGHUP/ExecReload/reload handling). If battery F4 ever fires, the right shape is an opt-in wrapper in go-appkit/config over `Loader.Load()` (PRESET-UPSTREAM: one consumer, all services benefit), with go-filewatcher as the candidate event source only after a dependency audit: it drags gogenfilter v3 (plus its indirect tree), go-gitignore, x/text, x/time into a config module that today has no runtime watcher deps, for a single-file watch. Raw fsnotify (already in the fleet graph via koanf) is the lighter alternative; the decision belongs to that future design note.
+3. **The missing rung below hot-reload: SIGHUP is also unwired** [NOT-NOW + zero demand]. Even the cheap reload path the appkit `Loader` anticipates is absent everywhere: no `ExecReload` in `systemd/app.service`, no SIGHUP handling in the preset (signal handling is the framework's per the brief, and the framework handles shutdown signals only, `internal/app/service.go:64` `svc.Run(ctx)`). This is consistent, not an accident: the fleet's deploy contract is restart with graceful drain (ready-flip, DrainHooks, drain wait) plus a 30s watchdog. Any future reload work should start here (preset SIGHUP -> `Loader.Load()` -> adopter hook), long before file-watching hot-reload; demand remains zero today.
+4. **Close the lib's jsonv2 open item** [LIB-UPSTREAM]. The lib's README (Install section) requires `GOEXPERIMENT=jsonv2` and says Go 1.27 is "expected to become the default"; its TODO_LIST carries an open item to verify that claim ("Verify or footnote the 'Go 1.27 defaults to json/v2' claim ... unsourced expectation"). Empirically resolved during this audit on the template's toolchain: go1.27.4 linux/amd64 resolves `encoding/json/v2` with no experiment set, and `GOEXPERIMENT=jsonv1` is rejected as unknown, i.e. the experiment graduated and the knob is gone. Impact: removes the one scary-looking build constraint from adopter-facing docs (it only applies on Go 1.26.x toolchains, below the template's floor anyway); ease: trivial doc edit citing a Go 1.27 verification.
+
+## Should the archetype adopt or wire more?
+
+No. Default binary: nothing, unchanged; there is no watched path, and the jsonv2-on-1.26 floor plus the five-dependency tree (gogenfilter, gitignore, x/text, x/time, fsnotify) would buy zero runtime behavior. Docs/examples: the single README/DOMAIN_LANGUAGE sentence from gap 1 is the entire warranted footprint; it belongs next to the config story because the honest answer to "how do I reload config?" is "restart", and the pointer prevents an adopter from improvising a watcher. Must stay out: any preset ask (a preset-level file-watching leg would impose weight and a domain decision on every adopter for a need roughly zero services have), any build-tag-gated watcher skeleton (unlike the events skeleton, which wires a real preset leg `go-appkit/cqrs`, a watcher skeleton would wire nothing), any config hot-reload. Where go-filewatcher belongs in the fleet stack: tooling and daemons, exactly where its 22 consumer modules already sit (pma-daemon's git-root watcher, project-discovery, dependency-graph, dynamic-markdown-site, auto-deduplicate, Cyberdom content, CV pipelines, compliance hub). The events-skeleton build-tag pattern is the right tool only on the day an adopter's service genuinely needs an optional watcher leg, and that day's design note should still weigh raw fsnotify against the full library.
+
+## Version currency
+
+Not applicable in the usual sense: there is no pin to bump, and none is warranted. Facts for the day an adopter adds it: latest tag v2.5.0 (2026-11-06); HEAD is 7 commits past it (3c074ad, 2026-11-23), all docs/chore (release proof notes, flake/manifest syncs), zero API change, so v2.5.0 is the fresh pin. There is no `[Unreleased]` section in CHANGELOG.md; release intent currently lives in TODO_LIST.md ("v3 Candidates": phantom-typed PathKey, CaseSensitivityProbed, context-aware OTelMiddleware). History: v0.1.0 (2026-04-04) through v2.5.0 is 15 tags in ~7.5 months, v2.0.0 (2026-05-23) being the rewrite to the current functional-options + channel API; cadence is roughly monthly with an Oct-Nov 2026 burst (five releases in five weeks), and the maintenance posture is unusually strong (release-please, 4-OS CI matrix, race and fuzz tests, benchmark baselines, docs gates). Build floors: `go 1.26.7` with `GOEXPERIMENT=jsonv2` required on 1.26.x toolchains; moot on the template's Go 1.27.4 (verified this audit, see gap 4). If the template ever adds it, the pin is the template's to make (it would be a direct require), not a preset train rider.
+
+## Risks
+
+For the template itself: none, nothing is imported (verified across go.mod, go.sum, and all Go sources). For adopters the docs pointer should carry:
+
+- Build constraint on older toolchains: Go <1.27 requires `GOEXPERIMENT=jsonv2` (lib README Install; resolved on 1.27.4 per this audit).
+- Dependency weight: five direct deps; gogenfilter v3 alone pulls a nontrivial indirect tree (pprof, jx, yaml, x/exp) into the consumer graph. Heavy for a single-file config watch; proportionate for a dev-tool watcher.
+- Deprecated APIs slated for v3 removal: `WithOnError` (use `WithErrorHandler`) and `MiddlewareRateLimit` (use `MiddlewareThrottle`), deprecated in 2.3.0 with MIGRATION.md guidance.
+- OTelMiddleware emits root spans only (no context threading; lib TODO_LIST v3 candidate); event traces cannot correlate with request traces today.
+- Semantic footguns: Chmod events are ignored by design; middleware order is first-added-runs-outermost; `MiddlewareRecovery` must be last to actually catch inner failures; default event-channel mode blocks the watch loop on a slow consumer (DropOnFull is opt-in).
+- Release hygiene quirks, not code risks: v2.4.1 shipped website-CSS-only as a Go patch (lib TODO open question 10, keep-or-retract); tags run no CI yet; pkg.go.dev lagged v2.5.0 at release time (TODO_LIST release cluster).
+- Misuse shape: recruiting it for config reload duplicates a decision the fleet has gated (battery F4) and skips the cheaper SIGHUP/`Loader` rung that already exists.
+
+## How to verify
+
+```bash
+rg -n 'go-filewatcher' /home/lars/projects/go-service-template/go.mod | wc -l          # 0 (absent from both require blocks)
+grep -c 'go-filewatcher' /home/lars/projects/go-service-template/go.sum                  # 0
+go -C /home/lars/projects/go-service-template mod why -m github.com/larsartmann/go-filewatcher   # "(main module does not need module ...)"
+go -C /home/lars/projects/go-service-template mod why -m github.com/fsnotify/fsnotify   # path: internal/events -> go-appkit/cqrs -> go-cqrs-lite/system/v4 -> koanf/providers/file -> fsnotify (graph-only, events leg is build-tag gated)
+rg -n -i 'fsnotify|watcher|hot.reload' /home/lars/projects/go-appkit/config/*.go /home/lars/projects/go-appkit/config/README.md   # README:12 "no watchers", README:108 "Hot-reload/watch (battery F4, demand-gated)", config.go:93 Loader SIGHUP shape; file layer is os.ReadFile (config/file.go:22)
+grep -c 'ExecReload\|SIGHUP' /home/lars/projects/go-service-template/systemd/app.service; echo ok   # 0 matches (restart-only posture)
+rg -n -i 'sighup|execreload' /home/lars/projects/go-appkit/preset /home/lars/projects/go-appkit/systemd --glob '*.go'; echo ok  # no non-test wiring
+rg -n 'Watch' /home/lars/projects/go-cqrs-lite/system --glob '*.go' --glob '!*_test.go' | wc -l    # 0 (koanf file provider's Watch is never called)
+rg -n 'func \(f \*File\) Watch' "$(go env GOMODCACHE)/github.com/knadh/koanf/providers/file@v1.2.1/file.go"   # :44 the unused-in-fleet watch capability fsnotify feeds
+git -C /home/lars/projects/go-filewatcher describe --tags                              # v2.5.0-7-g3c074ad
+git -C /home/lars/projects/go-filewatcher log -1 --format='%h %ci'                     # 3c074ad 2026-11-23 01:26:50 +0100
+git -C /home/lars/projects/go-filewatcher tag -l | wc -l                               # 15
+git -C /home/lars/projects/go-filewatcher log --oneline v2.5.0..HEAD                   # 7 commits, all docs/chore
+rg -l 'go-filewatcher' /home/lars/projects --glob go.mod | wc -l                       # 24 (the lib + a ci-siblings copy + 22 consumer modules)
+rg -l 'go-filewatcher' /home/lars/projects/index --glob '*.go' | head -3               # webapp/readmeindexer markdown watching (tooling-side usage shape)
+go list encoding/json/v2; GOEXPERIMENT=jsonv1 go list encoding/json/v2 || echo 'jsonv1 unknown: json/v2 is standard on go1.27.4'   # first succeeds, second prints the graduation proof
+```
+
+## Submodule matrix
+
+| Module path | In template graph | How used | Latest tag | Note |
+|---|---|---|---|---|
+| github.com/larsartmann/go-filewatcher/v2 (root, only module) | No | Nothing (absent; the graph's fsnotify v1.10.1 arrives via koanf, not via this lib) | v2.5.0 | single go.mod in the repo, confirmed by `find -name go.mod`; correct fleet home is tooling/daemons, with config hot-reload gated as appkit battery F4 if demand ever fires |
