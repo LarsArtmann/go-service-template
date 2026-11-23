@@ -6,7 +6,7 @@
 | Version audited | v1.9.0-24-g34dbf05 (34dbf05, 2026-11-21) |
 | Template pin | httputil v1.8.0 + server_timing v1.0.3, both indirect via the go-appkit chain; endpoints absent from the graph |
 | Latest tag | v1.9.0 (root) / server_timing v1.0.3 / endpoints v0.1.0 (new submodule, 2026-11-06) |
-| Adoption score | 50/100 (moderate), 8.5 of 17 applicable capabilities leveraged |
+| Adoption score | 50/100 (moderate), Σ = 9.0 of 18 applicable capabilities leveraged (7 fully, 4 partially) |
 | Verdict | The always-on spine the preset builds on httputil is superb and live-verified; roughly half the surface (compression, body limits, rate limiting, CSRF, sub-phase timings, /endpoints) is unwired anywhere in the appkit chain, and the right fix for almost all of it is preset legs, not template code. |
 
 ## Verdict

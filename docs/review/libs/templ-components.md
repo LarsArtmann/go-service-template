@@ -6,7 +6,7 @@
 | Version audited | charts/echarts/v1.27.2-3-gd8722176 (d8722176, 2026-11-23 01:29 +0100) |
 | Template pin | v1.27.2, all six graph modules (indirect via go-appkit chain) |
 | Latest tag | v1.27.2 (all seven published modules tagged in lockstep) |
-| Adoption score | 59/100 (moderate), 10 of 11 applicable capabilities leveraged (3 fully, 7 partially) |
+| Adoption score | 59/100 (moderate), Σ = 6.5 of 11 applicable capabilities leveraged (3 fully, 7 partially) |
 | Verdict | Preset-mediated adoption is real and runtime-verified (404 page + /health dashboard); template-direct usage is exactly zero, correctly so for an archetype, but the inherited error page ships unstyled and as a bare fragment. |
 
 ## Verdict

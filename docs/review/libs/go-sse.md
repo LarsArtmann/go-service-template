@@ -6,7 +6,7 @@
 | Version audited | v0.7.0-28-gd010c22 (d010c22, 2026-11-23 02:00 +0100) |
 | Template pin | v0.6.2 (indirect via go-appkit preset + realtime + go-health-dashboard chain; sseparse/ssetest absent from the graph) |
 | Latest tag | v0.7.0 (root); sseparse v0.2.1; ssetest v0.5.0 |
-| Adoption score | 75/100 (high) — 9 of 12 applicable capabilities leveraged |
+| Adoption score | 77/100 (high) — 10 of 13 applicable capabilities leveraged |
 | Verdict | The template consumes go-sse exactly the way the library wants to be consumed: zero template code, two mediated runtime paths (dashboard spine + optional realtime leg), and the missing "max" is all preset- and library-side (hub options not surfaced, Replay API forcing mediators to hand-roll, v0.6.2 pin). |
 
 ## Verdict
@@ -42,7 +42,7 @@ Used SUPERBLY in shape and to the max the current preset allows: every template 
 | ssetest HTTP test helpers (`Collect*`, `WithLastEventID`, `Require*`) | Not applicable | Not in the template graph; used upstream by appkit itself (`preset/realtime_test.go:12,69-70`, `integration/sse_health_drain_test.go:117`) | Template has no SSE endpoint to test; the JSON route test (`internal/api/routes_test.go`) is not SSE territory (see below) |
 | sseparse parser + WPT conformance corpus | Not applicable | `sseparse/reader.go:90`, corpus `corpus.go:74`; absent from template graph | Server-side fleet code never parses SSE; this is the library's own conformance infrastructure for non-HTTP consumers |
 
-Scoring: 15 rows, 3 Not-applicable, A = 12. Fully = 7 × 1.0, Partially = 4 × 0.5, Missed = 1 × 0. Σ = 9.0 → round(100 × 9/12) = 75.
+Scoring: 16 rows, 3 Not-applicable, A = 13. Fully = 8 × 1.0, Partially = 4 × 0.5, Missed = 1 × 0. Σ = 10.0 → round(100 × 10/13) = 77.
 
 ## Gaps and opportunities
 
