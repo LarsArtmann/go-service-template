@@ -1,0 +1,138 @@
+# templ-components, utilization review (go-service-template)
+
+| Reviewed | 2026-11-23 |
+|---|---|
+| Library | github.com/larsartmann/templ-components (+ submodules) |
+| Version audited | charts/echarts/v1.27.2-3-gd8722176 (d8722176, 2026-11-23 01:29 +0100) |
+| Template pin | v1.27.2, all six graph modules (indirect via go-appkit chain) |
+| Latest tag | v1.27.2 (all seven published modules tagged in lockstep) |
+| Adoption score | 59/100 (moderate), 10 of 11 applicable capabilities leveraged (3 fully, 7 partially) |
+| Verdict | Preset-mediated adoption is real and runtime-verified (404 page + /health dashboard); template-direct usage is exactly zero, correctly so for an archetype, but the inherited error page ships unstyled and as a bare fragment. |
+
+## Verdict
+
+Not "to the max" in the template-direct sense, and that is mostly right: an archetype with no domain should not author UI, and the preset already delivers two styled templ-components surfaces to every adopter with zero template code (verified by serving the binary: the catch-all 404 renders `templ-components/errorpage`, and `/health` renders the go-health-dashboard built from the root, datastar, icons and utils modules). "Max" here means three things: (1) the preset-mediated surfaces should be *correct and styled by construction*, today the 404 is an unstyled HTML fragment with no doctype, charset, viewport or stylesheet (runtime-verified), which undersells the "pretty 404s" the template's own landing page advertises; (2) the lib should own the CSS delivery for its standalone error documents so every fleet consumer benefits without a Tailwind pipeline; (3) the archetype should carry a documented (not scaffolded) path from "cloned service" to "authored UI", because the template ships no Tailwind tooling at all. None of those require the template to import templ-components.
+
+## What the template uses today
+
+- **PRESET-MEDIATED, error pages (spine, ON by default).** `preset/preset.go:116-118` mounts the catch-all whenever the `APPKIT_ERRORPAGES` leg is on (absent = on, `preset/env.go:12-14,90`); `preset/preset.go:242-248` passes a zero `errorpages.Config`. `errorpages/errorpages.go:9` imports `templ-components/errorpage`; the 404 path calls `errorpage.WriteNotFound404` at `errorpages/errorpages.go:175` (fragment form), the classified-error path builds `errorpage.ErrorHandler` with `HTMLShell: true` at `errorpages/errorpages.go:139-156`. Runtime-verified: `curl /nonexistent` returns a bare `<main>` fragment (aria-label "404, page not found") with Tailwind classes, `X-Robots-Tag: noindex`, no doctype, no stylesheet.
+- **PRESET-MEDIATED, health dashboard (spine, ON by default, config opt-out only).** `preset/preset.go:88-89,111` mounts health with `health.WithDashboard()` (`preset/preset.go:231-238`); `Config.NoDashboard` (`preset/config.go:56-58`) is the only switch, there is no env var for it. The dashboard is a separate lib, `go-health-dashboard` v0.13.3 (template indirect), which imports templ-components root (`display`, `feedback`, `layout`, `go-health-dashboard/status.go:14-15`, `view.templ:14`), `datastar` (`view.templ:10`), `icons` (`view.templ:13`) and `utils` (`page_scripts.templ:3`). Runtime-verified: `/health` serves a full HTML document with the Datastar 1.0.3 SDK and Tailwind via `https://cdn.tailwindcss.com` (the Play CDN fallback at `go-health-dashboard/view.templ:125-134` when no compiled `CSSPath` is set, the preset passes no dashboard options, so CDN is what adopters get).
+- **TEMPLATE-DIRECT, nothing.** `rg 'templ-components'` over every `.go`/`.templ` file in the template returns zero matches; `views/hello.templ` hand-writes a complete minimal HTML page ("It runs.", version, no CSS) served via `templ.Handler` (`views/views.go:17`). templ itself (`a-h/templ v0.3.1100`) is the template's only UI-adjacent direct require.
+- **GRAPH-ONLY, htmx submodule.** It sits in the template's indirect block because `display/card.templ:6` imports `templ-components/htmx` (`htmx.SwapStyle`, tile activation script) and the dashboard imports `display.Card`; no appkit or dashboard file imports the htmx package directly, and the dashboard renders the Datastar runtime, not htmx. Compiled in, never executed.
+- **ABSENT, charts/echarts, visualtest, website.** `charts/echarts` is not in the template's go.mod at all (nothing imports `EChart`; it appears only as a module-graph edge of the root module). `visualtest` and `website` are repo-local, never published (ADR-0034; no tags exist for either).
+- Note: `go-appkit/httpx/errors.go:12-19` deliberately mirrors the errorpage JSON contract field names but does **not** import the module, the template's `/api/status` error path is JSON-only and uses no templ-components code.
+
+## Capability inventory
+
+| Capability | Status | Evidence | Note |
+|---|---|---|---|
+| Classified error pages (HTML + JSON contract, go-error-family aware) | Fully leveraged | preset spine: `preset/preset.go:116-118,242-248`; `errorpages/errorpages.go:139-156`; runtime curl | Every adopter gets family-aware 404/4xx/5xx with Accept negotiation for free |
+| Standalone error document shell (doctype, charset, viewport) | Partially used | 404 path serves the fragment: `errorpages/errorpages.go:175` → `errorpage.WriteNotFound404`; `HTMLShell` exists but the default binary never exercises it | `WriteNotFound404Document` exists for exactly this case (`errorpage/handler.go` doc); appkit calls the fragment variant |
+| Error-page CSS delivery | Missed opportunity | `renderDocumentShell` (`errorpage/handler.go:318-347`) emits no `<link>`/`<style>`; template has no Tailwind (repo-wide grep: zero matches) | "Pretty 404s" render as unstyled-but-semantic HTML in every consumer without a CSS pipeline |
+| icons (102 typed icon names, RTL, animations) | Partially used | `errorpage/styles.go` family icons; dashboard `view.templ:13` | Inherited only; zero template-authored icon use |
+| Layout shells (Base, Minimal, AppShell, Container, Split, Stack) | Partially used | dashboard `view.templ:14`; hello page hand-rolls `<html>` (`views/hello.templ`) | `layout.Minimal` (`layout/base.templ:327+`) is a no-dependency document shell that would fit the hello page |
+| Theming / dark mode (ThemeScript, ThemeToggle, gray-* dark:) | Partially used | dashboard emits the theme bootstrap script (runtime probe); hello page has none | Guarded inside the lib by TestDarkModeCompliance; consumers get it via components |
+| Display components (Card, StatCard, Table, Badge, 53 total) | Partially used | dashboard `status.go:14` | Dashboard-only; no template UI surface |
+| Feedback components (Spinner, Skeleton, Toast, 15 total) | Partially used | dashboard `status.go:15` | Dashboard-only |
+| Forms package (26 controls, DirtyGuard, FilterBar, ValidationSummary) | Not applicable | Nothing in the template, preset or dashboard renders a form | An archetype has no data-entry surface; forms are the first thing an adopter's own domain brings |
+| htmx transport helpers (GlobalErrorHandling, LoadingButton, CSRFToken) | Not applicable | Compiled in via `display/card.templ:6`; zero runtime use; dashboard standardizes on Datastar | No interactive UI in the default binary; the preset already picked its transport |
+| datastar module (SDKScript, SSE helpers, LiveRegion) | Fully leveraged | dashboard `view.templ:10`; runtime probe serves datastar@1.0.3 | The dashboard's live updates ride this |
+| utils foundation (BaseProps, Class/tailwind-merge, ScriptComponent CSP) | Fully leveraged | `errorpage/notfound404.templ:38` (`utils.Class`); `page_scripts.templ:3` | Every rendered component in both mediated surfaces passes through it |
+| CSP nonce threading | Partially used | Hooks exist end-to-end (`errorpages.Config.Nonce`, `security.NonceFromContext` + dashboard `WithNonceExtractor`, `layout/embed.go` HTMXSelfHost) but preset passes zero config (`preset/preset.go:242-248`) and no CSP by default (`preset/security.go:44-52` leaves CSP empty) | Nothing broken (no CSP header ships), nothing exercised; strict-CSP adopters must wire it themselves |
+| charts/echarts opt-in module (EChart, SDKScript) | Not applicable | Absent from template go.mod; dashboard go.mod does not require it | Chart-heavy UIs are adopter-specific; the dashboard uses display's native SVG charts instead |
+| Component testing utilities (utils/golden, guard tests, visualtest) | Not applicable | Template authors zero components; `visualtest` is repo-local, never published | The lib's own ~1750 tests and 206 visual goldens cover the lib |
+| Adoption tooling (`tc doctor` nonce scanner, countgen) | Not applicable | No templ-components call sites exist in the template for doctor to scan | Relevant the moment an adopter starts authoring components |
+
+## Gaps and opportunities
+
+Ranked by impact × ease.
+
+1. **Standalone error documents ship no CSS, the "pretty 404" is unstyled fleet-wide.** What the lib offers: every errorpage component is styled with Tailwind utilities (`errorpage/notfound404.templ:38-80`), the lib compiles its own demo CSS (`nix run .#css`, SKILL.md), and it already embeds a runtime asset when needed (`layout/embed.go` embeds `static/htmx.min.js` for `HTMXSelfHost`). What the template does instead: nothing it can do, the preset serves `renderDocumentShell` output (`errorpage/handler.go:318-347`), which contains no stylesheet reference, and the template has no Tailwind pipeline (repo-wide grep: zero matches). Impact: high, the single most-visible templ-components surface in every fleet service renders as unstyled HTML, and the consumer-guide's own fleet lesson (`skill/references/consumer-guide.md:106-116`, "a missing package in the scan list shipped a 404-page outage") shows this class of gap bites in production. Sketch:
+   ```go
+   // errorpage/embed.go
+   //go:embed static/errorpage.css   // compiled once per release via the lib's Tailwind pipeline
+   var errorpageCSS string
+
+   // renderDocumentShell gains a <style nonce="..."> block (or a
+   // <link> served from a mounted /_errorpage/css route), so every
+   // standalone 404/5xx document is styled with zero consumer setup.
+   ```
+   Routing: **[LIB-UPSTREAM]**, one change styles error pages for every consumer of the module, appkit or not. (A preset-side vendored CSS file would duplicate the artifact per consumer; the lib already owns both the classes and the compiler.)
+2. **The 404 is served as a fragment, not a document.** What the lib offers: `WriteNotFound404Document(w, r, props, nonce, lang)` wraps the 404 in a standalone document ("Use it when nothing else renders the surrounding document", `errorpage/handler.go`). What the preset does instead: `errorpages/errorpages.go:175` calls the fragment `WriteNotFound404`, so the response body starts at `<main ...>`, no doctype (quirks mode), no charset, no viewport (runtime-verified). Impact: medium-high (correctness of the most-hit error path) × trivial ease (one call swap plus test updates). Routing: **[PRESET-UPSTREAM]**, appkit's fix, all adopters benefit, template untouched.
+3. **No documented path from cloned service to authored UI.** What the lib offers: a full consumer guide with the compiled-CSS artifact rule, replace-aware scanning requirements, and Play-CDN-to-v4 migration recipes (`skill/references/consumer-guide.md:95-150`). What the template does instead: nothing, no Tailwind in `flake.nix`, `dprint.json` or `views/`; the only UI guidance is the dashboard's CDN behavior, which is implicit. Impact: medium, every adopter building UI rediscovers the pipeline (tailwind CLI scanning `.templ` files plus every imported templ-components package). Routing: **[NOT-NOW + weight]** for scaffolding the pipeline into the template, paired with **[PRESET-UPSTREAM]** for an appkit-docs recipe ("adding UI to a preset service": Play CDN for dev exactly as the dashboard does, `WithCSSPath` + a compiled `app.css` for prod). A documented path is enough because the dashboard already proves the styled-UI experience works out of the box; an adopter authoring UI owns an app, at which point a CSS build is their app's concern, not the archetype's.
+4. **Hello page as teaching material.** What the lib offers: `layout.Minimal` (doctype, charset, viewport, no external deps), `display.Eyebrow`/`PageHeader`/`StatusBadge`, `layout.ThemeToggle`, typed enums. What the template does instead: `views/hello.templ` hand-writes 19 lines of plain HTML. A component version would read:
+   ```templ
+   @layout.Minimal(layout.DefaultMinimalProps()) {
+       @display.Eyebrow(display.EyebrowProps{Text: "go-service-template · v" + version})
+       <h1 class="text-3xl font-bold">It runs.</h1>
+       <p>The preset spine serves <code>/health</code>, <code>/healthz</code>, <code>/version</code> and pretty 404s.</p>
+   }
+   ```
+   …and would render *unstyled* in the template, because the classes have no CSS (gap 1/3). An example that looks broken teaches the wrong lesson; a correct example requires the CSS pipeline first. Impact today: low (adopters replace this page within minutes of cloning). Routing: **[NOT-NOW]**, keep the hand-rolled page; flip to **[TEMPLATE]** only if gap 1 lands (lib-embedded error/CSS story) or the owner accepts scaffolding gap 3's pipeline as a build-tag-gated `views_ui` skeleton in the events-module pattern.
+5. **CSP nonce auto-wiring under a strict-CSP future.** The preset's security leg ships no CSP by default (`preset/security.go:44-52`), so nothing is broken; but an adopter who sets `SecurityConfig`-level CSP gets a dashboard whose Play-CDN and Datastar scripts and error-page inline scripts are blocked unless they manually thread `WithNonceExtractor(security.NonceFromContext)` and `WithCSSPath` (both exist: `go-health-dashboard/options.go:424-449`, `security/csp_nonce.go:33-44`). Impact: low today × medium ease. Routing: **[PRESET-UPSTREAM]**, wire the nonce extractor into the dashboard whenever a CSP is configured.
+
+## Should the archetype adopt or wire more?
+
+No template-direct adoption. The default binary already renders templ-components twice without a single template import, which is the archetype's whole thesis: the framework owns production shape, the template owns only the adopter's domain-shaped slots. The hello page's hand-rolled HTML is the correct default: committed `*_templ.go` keeps `go build` dependency-free, and the page is scaffolding that every adopter deletes. What belongs elsewhere: the fragment/no-CSS 404 fixes belong to appkit and the lib (gaps 1-2); the UI adoption recipe belongs in appkit docs (gap 3); and if a gated UI example is ever wanted, the `//go:build events` skeleton in `internal/events` is the established pattern for optional weight, a `//go:build ui` views variant with one component page plus a compiled `app.css` would teach the vocabulary without touching the default binary. Forms, charts/echarts, htmx helpers and the visual-testing harness must stay out: they are app concerns, and the template would be pre-deciding transport and styling for every adopter.
+
+## Version currency
+
+Current. Template pins all six graph modules at v1.27.2 (indirect block, `go.mod:122-127`); latest tag is v1.27.2 for every published module (root, utils, icons, errorpage, htmx, datastar, charts/echarts), cut 2026-11-20. HEAD is 3 commits past the tag, all non-consumer chores: `737995a4` (re-add replace directives post-release), `bc369053` (skill doc: cmdguard fleet pairing), `d8722176` (sync flake/package manifests); `CHANGELOG.md` `[Unreleased]` is empty, no release intent pending, nothing for a consumer to pick up. The bump is not the template's to make: the requires are indirect, and interestingly the template's recorded v1.27.2 is *ahead* of every requirer (appkit pins v1.26.0 in `errorpages/httpx/health/preset` go.mod; go-health-dashboard v0.13.3 requires v1.27.0), so the template's own go.mod is the MVS floor maintaining currency until the next appkit train catches up. One alignment worth keeping: the template's direct `a-h/templ v0.3.1100` exactly matches the version templ-components v1.27.2 generated its committed `*_templ.go` with, appkit's `integration/go.mod:48` documents why drifting below the generator pin breaks compilation (`ResolveAttributeValue` removal).
+
+## Risks
+
+- **Unstyled, fragment 404 (verified at runtime)**, covered as gaps 1-2; the template's landing page literally advertises "pretty 404s" (`views/hello.templ` line 15), so the advertisement currently overpromises.
+- **Dashboard depends on `cdn.tailwindcss.com` and jsdelivr by default** (runtime-verified). The Play CDN is a dev tool by Tailwind's own labeling; a fleet service's `/health` page has a third-party availability and latency dependency, and the script is CSP-hostile. Mitigations exist (`WithCSSPath`, self-hosted `DatastarSrc`) but the preset passes no dashboard options. Not the template's risk to own; noted for the preset audit.
+- **`GOEXPERIMENT=jsonv2`**: appkit documents the requirement (`errorpages/doc.go:43`) for the errorpage JSON contract. Verified empirically: `go build ./... && go vet ./...` pass on the template's Go 1.27.4 toolchain with no experiment set, so nothing actional for adopters on the current floor.
+- **Strict-CSP consumers** must thread nonces themselves (gap 5); the error page's inline `goBack`/`copyCode` scripts degrade to no-op buttons when blocked, graceful, not silent breakage.
+- No deprecated APIs, no misuse of the mediated surface found; the template invokes none of the library directly, so misuse risk is structurally zero on its side.
+
+## How to verify
+
+```bash
+# Pins: six templ-components modules, all indirect v1.27.2
+rg -n 'larsartmann/templ-components' /home/lars/projects/go-service-template/go.mod
+
+# Zero template-direct usage
+rg -n 'templ-components' /home/lars/projects/go-service-template -g '*.go' -g '*.templ'   # no output
+
+# appkit wiring (preset-mediated surface)
+rg -l 'templ-components' /home/lars/projects/go-appkit -g '*.go'
+rg -n 'WriteNotFound404\(' /home/lars/projects/go-appkit/errorpages/errorpages.go
+rg -n 'WithDashboard|NoDashboard' /home/lars/projects/go-appkit/preset/preset.go /home/lars/projects/go-appkit/preset/config.go
+
+# No Tailwind pipeline anywhere in the template
+rg -il tailwind /home/lars/projects/go-service-template                            # no output
+rg -n 'tailwind|css' /home/lars/projects/go-service-template/flake.nix /home/lars/projects/go-service-template/dprint.json  # no output
+
+# Error page ships no stylesheet (fragment + no CSS)
+rg -n 'stylesheet|<style|<link' /home/lars/projects/templ-components/errorpage/handler.go   # no output
+
+# Version facts
+git -C /home/lars/projects/templ-components describe --tags        # charts/echarts/v1.27.2-3-gd8722176
+git -C /home/lars/projects/templ-components log --oneline v1.27.2..HEAD
+git -C /home/lars/projects/templ-components tag --sort=-creatordate | head -7   # all seven modules at v1.27.2
+
+# Runtime proof (build, serve, inspect the three surfaces)
+cd /home/lars/projects/go-service-template && go build ./... &&
+  go build -o /tmp/gst ./cmd/app && APP_ADDR=127.0.0.1:18099 /tmp/gst serve &
+sleep 2
+curl -s http://127.0.0.1:18099/            | head -c 200   # hand-rolled hello, no CSS
+curl -s http://127.0.0.1:18099/nonexistent | head -c 200   # bare <main> fragment, Tailwind classes, no doctype/stylesheet
+curl -s http://127.0.0.1:18099/health | grep -o 'cdn.tailwindcss.com\|datastar@[^/"]*'  # Play CDN + Datastar runtime
+kill %1
+```
+
+## Submodule matrix
+
+| Module path | In template graph | How used | Latest tag | Note |
+|---|---|---|---|---|
+| github.com/larsartmann/templ-components (root) | yes, indirect v1.27.2 | PRESET-MEDIATED: dashboard renders `display`, `feedback`, `layout` (`go-health-dashboard/status.go:14-15`, `view.templ:14`) | v1.27.2 | 138 components; the styled surface adopters see at `/health` |
+| …/templ-components/utils | yes, indirect v1.27.2 | foundation of every rendered component (both mediated surfaces) | v1.27.2 | `BaseProps`, `Class` (tailwind-merge), `ScriptComponent` CSP guard (v1.27.2 `</script>` refusal) |
+| …/templ-components/errorpage | yes, indirect v1.27.2 | the ONLY module appkit imports directly (`errorpages/errorpages.go:9`); renders the spine 404/5xx | v1.27.2 | fragment + no-CSS findings live here and in appkit |
+| …/templ-components/icons | yes, indirect v1.27.2 | errorpage family icons, dashboard chrome | v1.27.2 | 102 typed icon names |
+| …/templ-components/htmx | yes, indirect v1.27.2 | GRAPH-ONLY at runtime: compiled in via `display/card.templ:6`; nothing executes it | v1.27.2 | dashboard chose Datastar; adopters authoring htmx UIs get it for free |
+| …/templ-components/datastar | yes, indirect v1.27.2 | dashboard `SDKScript` (`view.templ:10`); runtime serves datastar@1.0.3 | v1.27.2 | CSP-safe nonce mode documented in v1.27.1 changelog |
+| …/templ-components/charts/echarts | no (absent from go.mod) | nothing imports `EChart`; module-graph edge of the root module only | v1.27.2 | opt-in tier for chart-heavy adopter apps; adopter-relevance: nil for the archetype, high for real dashboards |
+| …/templ-components/visualtest | no | repo-local, never published (ADR-0034; pin-policy comment in its go.mod) | none | chromedp pixel-golden harness; adopters cannot import it, its value is lib-internal quality |
+| …/templ-components/website | no | repo-local SSG docs site (templcomponents.lars.software) | none | the documentation adopters read; not a dependency |
