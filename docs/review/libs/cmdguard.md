@@ -1,4 +1,4 @@
-# cmdguard — utilization review (go-service-template)
+# cmdguard: utilization review (go-service-template)
 
 | Reviewed | 2026-11-23 |
 |---|---|
@@ -6,7 +6,7 @@
 | Version audited | lint/v0.4.0-37-gf36c61b (f36c61b, 2026-11-23) |
 | Template pin | v5.1.0 (direct) |
 | Latest tag | v5.1.0 (root module) |
-| Adoption score | 50/100 (moderate) — 6.5 of 13 applicable capabilities leveraged |
+| Adoption score | 50/100 (moderate), 6.5 of 13 applicable capabilities leveraged |
 | Verdict | The thin slice used is used flawlessly (exit codes, batteries, signals all verified live); the breadth is deliberately near-zero because the archetype routes config and lifecycle through go-appkit, which leaves the flagship typed-flag grammar, middleware, and contract-pinning testutil unexercised. |
 
 ## Verdict
