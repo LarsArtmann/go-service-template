@@ -76,7 +76,7 @@ For the template itself: none, nothing is imported (verified). For adopters the 
 
 ```bash
 rg -n 'go-business-rules' /home/lars/projects/go-service-template/go.mod | wc -l                 # 0 (absent from both require blocks)
-rg -l 'businessrules' /home/lars/projects/go-service-template -g '!docs/**' | wc -l              # 0 (no imports; docs/ holds this report only)
+rg -l 'businessrules' /home/lars/projects/go-service-template -g '*.go' | wc -l                     # 0 (no Go file imports it; only this markdown report mentions it)
 rg -l 'businessrules' /home/lars/projects/go-appkit | wc -l                                      # 0 (no preset mediation)
 git -C /home/lars/projects/go-business-rules describe --tags                                     # v2.2.1-7-g75a1a8c
 git -C /home/lars/projects/go-business-rules log -1 --format='%h %ci'                            # 75a1a8c 2026-11-23 01:25:09 +0100
