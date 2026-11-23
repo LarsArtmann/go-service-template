@@ -1,0 +1,124 @@
+# go-retry: utilization review (go-service-template)
+
+| Reviewed | 2026-11-23 |
+|---|---|
+| Library | github.com/larsartmann/go-retry (+ tools submodule) |
+| Version audited | v0.9.0-10-ga0f931d (a0f931d, 2026-11-23) |
+| Template pin | v0.9.0 (indirect via go-appkit/cqrs v0.9.0, itself via go-cqrs-lite/middleware/v4) |
+| Latest tag | v0.9.0 |
+| Adoption score | 75/100 (high), 1.5 of 2 applicable capabilities leveraged (1 fully, 1 partial) |
+| Verdict | GRAPH-ONLY is the correct posture: an archetype with zero outbound calls has nothing to retry, the pin is current, and the mediated redelivery surface on the events leg is exactly where adopter retry belongs. |
+
+## Verdict
+
+Not used at runtime, anywhere, and that is the right answer for this repo. Verified negative: the default template binary links zero go-retry packages (`go list -deps ./cmd/app | grep -c go-retry` = 0), no template file imports it, the preset never wires it, and even `go build -tags events` excludes it until the adopter wires `internal/events` into `Serve` (the skeleton is deliberately not imported by `main`). "Max" here cannot mean "retry more": the template's one handler returns a static struct, there is no database, no outbound HTTP client, no message dispatch in the default spine, so there is no operation whose transient failure a retry loop could absorb. Max means three smaller things: (a) the pin tracks the latest tag with zero template effort (it does, v0.9.0 = v0.9.0), (b) the mediated path stays reachable for the leg that will eventually need it (it does: the events leg links cqrs-lite's retry middleware, which wraps `retry.Do`), and (c) adopters get routed to the right extension point. (c) is the one real gap: the events skeleton's otherwise-excellent doc comment never mentions the one-line `CommandRetry` append. GRAPH-ONLY with current version is therefore scored as high mediation quality, not as template failure; the inventory below is deliberately N/A-heavy for exactly that reason.
+
+## What the template uses today
+
+- GRAPH-ONLY: `github.com/larsartmann/go-retry v0.9.0 // indirect` (go-service-template go.mod:117). Resolved chain: `go-appkit/cqrs v0.9.0` requires go-retry v0.9.0 (`go mod graph`; appkit cqrs/go.mod:65, identical at the newer cqrs/v0.10.0 tag and at appkit HEAD). Two deeper requirers lag and are lifted by MVS: `go-cqrs-lite/middleware/v4@v4.7.2` requires v0.7.1, `go-cqrs-lite/commandlifecycle/v4@v4.3.1` requires v0.8.0; both modules' go.mods at their local HEAD already pin v0.9.0 (middleware/v4/go.mod:18 direct, commandlifecycle/v4/go.mod:37 indirect), so no requirer has moved past v0.9.0.
+- TEMPLATE-DIRECT: nothing. `rg -n 'go-retry'` over the template's Go files returns empty.
+- PRESET-MEDIATED: nothing, by explicit appkit policy. The preset package contains zero cqrs/retry references (verified over preset/config.go, env.go, doc.go), and go-appkit's only non-test import of the middleware package is appkit/cqrs/commands.go:11, used for `CommandRecovery`/`CommandTracing`/`CommandLogging` in `DefaultCommandMiddleware` (commands.go:28-40). The comment at commands.go:18-21 states that "Retry, idempotency, and circuit breaking are deliberately NOT defaults" because "they change command semantics and belong to the consumer (append them via EventConfig.CommandMiddleware)" (eventservice.go:131-135). No appkit boot-retry path exists anywhere in non-test appkit code (only that comment mentions retry).
+- Events leg (compile-graph present, runtime dormant): `internal/events/events.go:24` imports go-appkit/cqrs behind `//go:build events` (events.go:1). Compiled with the tag, the package closure includes go-retry (`go list -deps -tags events ./internal/events` lists it) via appkit/cqrs/commands.go:11 → cqrs-lite middleware/v4/retry.go:11. But `./cmd/app` with `-tags events` still links none of it, because nothing imports `internal/events` until the adopter follows the wiring instructions in events.go:9-16. Even once wired, `retry.Do` executes only if the adopter appends `middleware.CommandRetry`/`EventRetry`/`QueryRetry` (middleware/v4/retry.go:60/66/72; the wrapper calls `retrypkg.Do` at retry.go:108-138). This is import presence without runtime wiring, which per this audit's lens is GRAPH-ONLY, not usage.
+- Candidate mediators checked and ruled out: cqrs-lite bus/dispatcher redelivery is real but reaches the template only through the dormant events leg (above); appkit boot retries do not exist; go-health-dashboard has zero go-retry references in go.mod, go.sum, and all `*.go` (rg exit 1), so the dashboard-polling hypothesis is false.
+
+## Capability inventory
+
+| Capability | Status | Evidence | Note |
+|---|---|---|---|
+| Core retry loop (`Do`, `AttemptFunc`: bounded attempts, backoff sleeps, exhaustion) | Not applicable | go-retry retry.go:99, loop :113-130 | The archetype executes zero retry loops: default binary links no go-retry package; the one handler (internal/api/routes.go) returns a static struct with no external call |
+| Value-returning generic retry (`DoWithValue[T]`) | Not applicable | retry.go:159-177 | Adopter story for handler-level DB/API lookups; template has no lookup to wrap (verified: no `http.Client`, no `database/sql`, no `net.Dial` in template `*.go`) |
+| Configuration + validation (`Config`, `DefaultConfig`, `Validate`, Rejection codes) | Not applicable | config.go:20-70, :73-81, :96-126 | Nothing to configure while nothing retries; attempt counts and delay budgets are per-dependency adopter decisions, not archetype config |
+| Per-call options tail (`WithIsRetryable`, `WithDelayFunc`, `WithOnRetry`, `WithExhausted`) | Not applicable | options.go:20-46, applied retry.go:100 | Call-site concern of adopter code that does not exist yet |
+| Jitter strategies (`JitterAdditive` default, `JitterNone`, `WithJitter`; hard cap at MaxDelay) | Not applicable | options.go:48-76, retry.go:338-360 | No loop runs to jitter; thundering-herd protection matters once many handlers retry, an adopter-scale concern |
+| Deterministic RNG for tests (`WithRandomSource`) | Not applicable | options.go:78-89, retry.go:366-372 | Test-support for exact jittered-delay assertions; the template has no retry tests to make deterministic |
+| Server-provided delays / HTTP Retry-After (`DelayFunc`, 0 falls back to exponential) | Not applicable | config.go:38-49, retry.go:212-218 | Outbound HTTP is zero in the archetype; no server ever hands this service a delay |
+| Retryability classification (`IsRetryable` predicate, default `errorfamily.IsRetryable`, Transient-only) | Not applicable | config.go:34-36, retry.go:106-121 | Classification itself lives in go-error-family (separate review) and is shared via the classified-error spine; no retry decision point exists here to feed |
+| Context-ending semantics (`ErrCanceled` vs `ErrDeadlineExceeded`, last-error chain, multi-%w) | Not applicable | retry.go:50-71, :183-240 | Matters for graceful drain of retried work; the preset's drain has no retry loops to interrupt |
+| Error taxonomy: fail-closed nesting, last-attempt code promotion | Not applicable | retry.go:25-48, :136-139, :253-260 | Requires nested loops; there are zero loops, and the promotion feature matters to code-routed alerting an archetype does not run |
+| Observability hooks (`OnRetry`, `OnExhausted`; no OTel/metrics dependency by design) | Not applicable | config.go:51-59, doc.go:1-9 | Lib deliberately ships no OTel SDK (doc.go); the CQRS mediator adds spans and dead-letter entries itself (middleware/v4/retry.go:88-136) |
+| Backoff preview helpers (`Backoff(config, n)`, `ComputeDelay(...)`) | Not applicable | retry.go:275-299 | Nothing previews or logs planned delays |
+| Policy interop (`FromPolicy(errorfamily.RetryPolicy)`) | Not applicable | config.go:83-93 | No retry policies exist anywhere in the template to convert |
+| HTTP transport retry (`http.RoundTripper` wrapper) | Not applicable | Absent from the export surface by design: doc.go:1-9 declares the zero-CQRS zero-OTel core; README "Why" routes the wrapped variants to cqrs-lite middleware | The lib intentionally does not ship one; for adopters the fleet answer is cqrs middleware (messages) or a call-site `Do` wrapper (HTTP), not a transport monkey-patch |
+| CQRS redelivery middleware (mediated surface: `NewRetry`/`CommandRetry`/`EventRetry`/`QueryRetry` over `retry.Do`) | Partially used | middleware/v4/retry.go:11, :21-45, :60-74, :108-138 (calls `retrypkg.Do`); reachable from the template's events leg via events.go:24 → appkit/cqrs/commands.go:11; appkit excludes it from defaults deliberately (commands.go:18-21) | Linked but never executed once the events leg compiles; execution is one append away via `EventConfig.CommandMiddleware` (eventservice.go:131-135). Note the two-layer story is already right: in-process retry for transient blips vs the projection DLQ the skeleton does enable (worker restart budget + quarantine, eventservice.go:84-90), which is not go-retry |
+| Version/graph currency | Fully leveraged | go.mod:117 pins v0.9.0 = latest tag; every requirer go.mod at HEAD (appkit cqrs/v0.10.0 tag and HEAD :65; middleware/v4 HEAD :18; commandlifecycle/v4 HEAD :37) also pins v0.9.0 | Nothing to bump, and the bump rides the appkit train automatically, not the template's direct action |
+
+Scoring reconciliation: 15 rows, 13 Not applicable, A = 2 applicable. Version/graph currency Fully leveraged (1), CQRS redelivery mediation Partially used (0.5). Σ = 1.5, score = round(100 × 1.5 / 2) = 75, high band (70-84). The N/A-heavy table is the point, not an escape: with zero outbound calls, retry has no call site in this repo, so the score measures mediation posture (current pin, reachable surface, correct boundaries) rather than feature coverage.
+
+## Gaps and opportunities
+
+1. **The events skeleton should name the redelivery extension point** [TEMPLATE]. The skeleton's doc comment (internal/events/events.go:3-17) teaches wiring, projections, DLQ, and the shutdown hook, but never says that command/query/event retry is one append away. Impact: an adopter enabling the events leg rediscovers `middleware.CommandRetry` from appkit docs instead of from the scaffold that exists to teach exactly this; ease: two comment lines, zero runtime weight, no code duplication of anything the preset owns. Sketch (append to events.go's wiring comment, or as a commented field if the adopter wires `New`):
+
+   ```go
+   // Redelivery (when a command/query handler fails transiently): append the
+   // cqrs-lite retry middleware, which wraps go-retry (already in the graph):
+   //
+   //	chain := cqrs.DefaultCommandMiddleware(logger, nil)
+   //	chain = append(chain, middleware.CommandRetry(middleware.RetryConfig{
+   //		MaxAttempts: 3, OnDeadLetter: mySink,
+   //	}))
+   //	cqrs.NewEventService(cqrs.EventConfig{..., CommandMiddleware: chain})
+   //
+   // Defaults retry only Transient errors; DLQ above stays the poison-event path.
+   ```
+
+2. **Library HEAD carries unreleased go.mod drift its own guard test forbids** [LIB-UPSTREAM]. At tag v0.9.0 go.mod declares `go 1.26` + error-family v0.11.0; at HEAD (unreleased, 10 commits) it declares `go 1.27` + error-family v0.12.0 (`git diff v0.9.0..HEAD -- go.mod`), while `TestModuleGoDirectiveStaysPinned` still asserts `"1.26"` (retry_test.go:981) and the CHANGELOG's [Unreleased] section says "Nothing yet" for Changed (the one entry present, the CI lint-stack bump, is mangled into its own heading, CHANGELOG.md:8-16). This is the exact auto-bump drift class v0.9.0's changelog says was restored deliberately ("Re-adopt v0.12.0+ only as a deliberate re-pin", CHANGELOG.md:58-64). Impact: the next tag would silently raise the Go floor and ship a failing guard; no effect on the template at pin v0.9.0. Ease for the owner: one deliberate re-pin commit or a revert.
+
+3. **Adopter outbound-call retry belongs at the call site, not in the template or preset** [NOT-NOW + reason]. When an adopter adds a database or an upstream API, the canonical shape is `retry.DoWithValue` around that specific call with error-family codes for classification, `OnRetry` for logging, and a per-dependency budget. Reason for NOT-NOW in the archetype: retry budgets and retryability are per-dependency facts (idempotency, rate limits, Retry-After support); a template-local or preset-default retry would multiply load during incidents and retry non-idempotent work for every adopter. Appkit already states the same boundary for the message path (commands.go:18-21), so the fleet position is consistent top to bottom.
+
+## Should the archetype adopt or wire more?
+
+No wiring in the default binary, and that is a verdict, not a shrug. Retry is a response to the failure modes of outbound dependencies; this archetype has none (verified: no `http.Client`, no `database/sql`, no `net.Dial` in any template Go file; the one handler returns a static struct). Wiring a retry loop around nothing would add sleep paths to the example handler and teach the wrong shape. The default binary's cost for the current posture is provably zero: `go list -deps ./cmd/app` contains no go-retry package, so GRAPH-ONLY costs no bytes, not even the error-family dependency it would drag in.
+
+What does belong where:
+
+- Default binary: nothing. Retry is not a spine capability; it is a call-site or dispatch-pipeline concern.
+- Docs/scaffold (the events pattern): the build-tag-gated `internal/events` skeleton is exactly the tool for optional weight, and it is where go-retry becomes reachable (compile-graph only until wired). Gap 1's two comment lines are the entire justified template investment.
+- Adopter code: synchronous outbound calls get handler/client-level `retry.DoWithValue`; the events leg gets `middleware.CommandRetry`/`EventRetry`/`QueryRetry` via `EventConfig.CommandMiddleware` (appkit/cqrs/eventservice.go:131-135), with the projection DLQ as the separate poison-event layer. The events path is already covered by cqrs redelivery; the template should not re-wrap or duplicate it.
+- Preset: correctly stays out. Appkit's documented refusal to default retry into `DefaultCommandMiddleware` (commands.go:18-21) is the right collective-improvement posture: the capability is available to every adopter through the same middleware import, without changing semantics for those who do not want it.
+
+## Version currency
+
+Current, and not the template's to manage. The pin v0.9.0 (go.mod:117) equals the latest tag; HEAD is v0.9.0-10-ga0f931d with zero library API changes in the gap: the diffstat touches only CI workflows, `.golangci.yml`, CHANGELOG/TODO/docs, and go.mod/go.sum (no changes to retry.go, config.go, options.go). The gap's real content is operational: the CI lint bump to v2.15.0 with a wrapcheck exemption, a v0.9.0 consumer-sweep status report, and the go 1.27 + error-family v0.12.0 go.mod drift flagged as gap 2. The bump rides the appkit train: go-retry is required by go-appkit/cqrs (go.mod:65 at both the cqrs/v0.9.0 pin and the newer cqrs/v0.10.0 tag), so the template's number moves only when appkit's does, and every requirer at HEAD (appkit cqrs, cqrs-lite middleware/v4, cqrs-lite commandlifecycle/v4) still pins v0.9.0, so no train is even waiting.
+
+## Risks
+
+None for the template at the current pin; nothing executes, so misuse is structurally impossible today. Checked for adopters following the recommended paths: the classic footguns are fail-closed by design (nested loops: `ErrExhausted` is Infrastructure and the default predicate retries only Transient errors, so outer loops treat inner exhaustion as terminal, retry.go:41-44 and README "Exhaustion and nesting"; non-idempotent retries remain the adopter's judgment, which is why appkit refuses to default it). No deprecated exports; sentinels have been interface-typed since v0.8.0. The one live risk is upstream, not consumer-facing: the unreleased HEAD go.mod drift against its own guard test (gap 2), which would surface as a red CI guard or a silent Go-floor raise on the next tag, not as a behavioral change for the template.
+
+## How to verify
+
+```bash
+# Pin and graph position
+grep -n 'go-retry' /home/lars/projects/go-service-template/go.mod
+cd /home/lars/projects/go-service-template && go mod why -m github.com/larsartmann/go-retry
+cd /home/lars/projects/go-service-template && go mod graph | grep 'go-retry'
+
+# Default binary links zero go-retry packages (prints 0)
+cd /home/lars/projects/go-service-template && go list -deps ./cmd/app | grep -c 'larsartmann/go-retry'
+
+# Events-tag closure includes it, but main never does until wired
+cd /home/lars/projects/go-service-template && go list -deps -tags events ./internal/events | grep 'larsartmann/go-retry'
+cd /home/lars/projects/go-service-template && go list -deps -tags events ./cmd/app | grep -c 'larsartmann/go-retry'   # 0
+
+# Mediator citations
+rg -n 'larsartmann/go-retry' /home/lars/projects/go-appkit --glob '*.go'          # no matches: appkit never imports it directly
+rg -n 'larsartmann/go-retry' /home/lars/projects/go-cqrs-lite --glob '*.go'        # middleware/v4/retry.go:11 + doc references
+sed -n 18,21p /home/lars/projects/go-appkit/cqrs/commands.go                        # "Retry ... deliberately NOT defaults"
+rg -n 'CommandMiddleware' /home/lars/projects/go-appkit/cqrs/eventservice.go        # :135 the adopter append point
+rg -n 'larsartmann/go-retry' /home/lars/projects/go-health-dashboard                # exit 1: dashboard never touches it
+
+# Requirer pins at HEAD (all v0.9.0)
+grep -n 'go-retry' /home/lars/projects/go-appkit/cqrs/go.mod /home/lars/projects/go-cqrs-lite/middleware/v4/go.mod /home/lars/projects/go-cqrs-lite/commandlifecycle/v4/go.mod
+
+# Library version facts and unreleased delta
+git -C /home/lars/projects/go-retry describe --tags                                 # v0.9.0-10-ga0f931d
+git -C /home/lars/projects/go-retry diff --stat v0.9.0..HEAD                        # no retry.go/config.go/options.go changes
+git -C /home/lars/projects/go-retry diff v0.9.0..HEAD -- go.mod                     # go 1.27 + error-family v0.12.0 drift
+rg -n 'const want' /home/lars/projects/go-retry/retry_test.go                       # :981 pins "1.26"
+```
+
+## Submodule matrix
+
+| Module path | In template graph | How used | Latest tag | Note |
+|---|---|---|---|---|
+| github.com/larsartmann/go-retry (root) | Yes, indirect v0.9.0 (go.mod:117 via go-appkit/cqrs v0.9.0) | Graph-only; packages link only when the events leg is compiled, and the retry loop executes only after an adopter appends cqrs middleware | v0.9.0 | Single consumer surface (Do/DoWithValue/Config/options/sentinels); zero runtime use in the default binary, by correct design |
+| github.com/larsartmann/go-retry/tools | No | Dev-only nested module pinning actionlint + govulncheck via Go `tool` directives for the lib's own CI (tools/go.mod, tools/tools.go) | none (untagged) | Consumers download none of it (documented in tools/tools.go); nothing for the template to adopt or track |
