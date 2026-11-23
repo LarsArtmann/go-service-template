@@ -84,7 +84,7 @@ not?
 | docs-gates battery                                | FULLY_FUNCTIONAL | `docs-gates run .` → PASS (freshness, audit-all, annotate, routing, cadence) | The ritual that keeps this doc set honest                                                                                                            |
 | golangci-lint fleet config                        | FULLY_FUNCTIONAL | `.golangci.yml`; `golangci-lint run ./...` → `0 issues`                      | Copied from the appkit fleet standard                                                                                                                |
 | Route tests                                       | FULLY_FUNCTIONAL | `internal/api/routes_test.go` (2 tests, race-clean)                          | Covers the JSON route and the unmatched-path fall-through; 100% statement coverage in `internal/api`, none yet in `cmd/app`, `internal/app`, `views` |
-| Full quality gate (`buildflow --build-mode full`) | FULLY_FUNCTIONAL | 60 steps succeeded, 0 failed (2026-11-22)                                    | The real gate; dev mode is a subset. Advisory findings are env/tool noise, not failures                                                              |
+| Full quality gate (`buildflow --build-mode full`) | FULLY_FUNCTIONAL | 0 failed, 62 steps (2026-11-22)                                              | The real gate; dev mode is a subset. Advisory findings are env/tool noise, not failures                                                              |
 
 **Row count:** 29 rows — 17 `FULLY_FUNCTIONAL`, 3 `PARTIALLY_FUNCTIONAL`,
 0 `BROKEN`, 9 `DISABLED`, 0 `PLANNED`.

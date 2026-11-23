@@ -60,7 +60,7 @@ Verified 2026-11-22 on the Nix-built binary (`result/bin/app`): boot via
 `APP_ADDR=:18089`, `/healthz` + `/readyz` + `/startupz` + `/api/status` +
 `/version` + `/health` + `/` all 200, `/nope` 404, five-phase SIGTERM drain,
 `version` prints the git rev, `doctor` 2/2. Also green the same day: the
-full-mode gate (60 steps, 0 failed), `.#app-image` +
+full-mode gate (0 failed; 62 steps on the final run), `.#app-image` +
 `.#checks.<system>.container-structure` + `.#checks.<system>.vendor-hash`, and
 the docs battery. There is no container runtime on the dev machine — the
 IMAGE itself has never been booted (TODO_LIST row 1).
