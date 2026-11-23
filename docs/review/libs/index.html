@@ -1,0 +1,1726 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fleet library utilization audit · go-service-template · 2026-11-23</title>
+    <style>
+      /* =========================================================================
+         BAUHAUS LIGHT — Editorial template
+         Design language: form follows function. Primary colors on warm paper.
+         Zero external dependencies: system fonts, no CDN, no build step.
+         Token architecture: see references/bauhaus-tokens.md
+         ========================================================================= */
+
+      :root {
+        /* --- Primitive palette (Bauhaus Light) --- */
+        --color-paper: #f4f4f0;
+        --color-paper-2: #ffffff;
+        --color-paper-3: #e8e8e2;
+        --color-ink: #111111;
+        --color-red: #e63946;
+        --color-blue: #1d3557;
+        --color-yellow: #f4d35e;
+        --color-hairline: rgba(17, 17, 17, 0.14);
+        --color-hairline-strong: rgba(17, 17, 17, 0.3);
+
+        /* --- Semantic layer (shared vocabulary with dark template) --- */
+        --surface: var(--color-paper);
+        --surface-raised: var(--color-paper-2);
+        --surface-sunken: var(--color-paper-3);
+        --text: var(--color-ink);
+        --text-muted: rgba(17, 17, 17, 0.72);
+        --text-faint: rgba(17, 17, 17, 0.5);
+        --border: var(--color-hairline);
+        --border-strong: var(--color-hairline-strong);
+        --accent: var(--color-red);
+        --problem: var(--color-red);
+        --solution: var(--color-blue);
+        --warning: var(--color-yellow);
+
+        /* --- Backward-compatible aliases (do not break consumer skills) --- */
+        --bg: var(--surface);
+        --bg-elevated: var(--surface-raised);
+        --bg-sunken: var(--surface-sunken);
+        --bg-card: var(--surface-raised);
+        --bg-code: var(--surface-sunken);
+        --ink: var(--text);
+        --ink-secondary: var(--text-muted);
+        --ink-muted: var(--text-faint);
+        --rose: var(--problem);
+        --rose-glow: color-mix(in srgb, var(--problem) 15%, transparent);
+        --emerald: var(--solution);
+        --emerald-glow: color-mix(in srgb, var(--solution) 15%, transparent);
+        --amber: var(--warning);
+        --amber-glow: color-mix(in srgb, var(--warning) 15%, transparent);
+        --amber-light: color-mix(in srgb, var(--warning) 22%, transparent);
+        --coral: var(--problem);
+        --coral-light: color-mix(in srgb, var(--problem) 12%, transparent);
+        --teal: var(--solution);
+        --teal-light: color-mix(in srgb, var(--solution) 12%, transparent);
+
+        /* --- Shape --- */
+        --radius: 0px;
+        --radius-sm: 0px;
+
+        /* --- Type stacks (system only — zero external fonts) --- */
+        --font-heading:
+          ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        --font-body:
+          ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        --font-mono:
+          ui-monospace, "Cascadia Code", "Source Code Pro", "JetBrains Mono",
+          Menlo, Consolas, monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+        *,
+        *::before,
+        *::after {
+          transition-duration: 0.01ms !important;
+          animation-duration: 0.01ms !important;
+        }
+      }
+      section[id],
+      [id] {
+        scroll-margin-top: 60px;
+      }
+
+      body {
+        background: var(--surface);
+        color: var(--text);
+        font-family: var(--font-body);
+        font-size: 16px;
+        line-height: 1.65;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      /* --- Accessibility: keyboard focus --- */
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      a:focus-visible {
+        outline-offset: -1px;
+      }
+
+      /* --- Full-bleed top bar --- */
+      .top-bar {
+        background: var(--text);
+        color: var(--surface);
+        padding: 0.6rem 2rem;
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      /* --- Layout: optional sticky sidebar TOC --- */
+      .layout {
+        display: flex;
+        gap: 2.5rem;
+        padding: 2rem;
+      }
+      .sidebar {
+        width: 220px;
+        flex-shrink: 0;
+        position: sticky;
+        top: 1rem;
+        align-self: flex-start;
+        height: calc(100vh - 2rem);
+        overflow-y: auto;
+        display: none;
+      }
+      .sidebar nav {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+      }
+      .sidebar .label {
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--accent);
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.4rem;
+        border-bottom: 2px solid var(--text);
+      }
+      .sidebar a {
+        font-size: 0.86rem;
+        color: var(--text);
+        text-decoration: none;
+        padding: 0.5rem 0.75rem;
+        border-left: 4px solid transparent;
+        font-weight: 600;
+        transition: all 0.15s ease;
+        line-height: 1.4;
+      }
+      .sidebar a:hover,
+      .sidebar a.active {
+        border-left-color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 8%, transparent);
+        color: var(--accent);
+      }
+      .main {
+        flex: 1;
+        min-width: 0;
+      }
+
+      /* --- Headings --- */
+      h1,
+      h2,
+      h3,
+      h4 {
+        font-family: var(--font-heading);
+        font-weight: 900;
+        letter-spacing: -0.02em;
+        color: var(--text);
+      }
+      h1 {
+        font-size: clamp(1.9rem, 4.5vw, 2.8rem);
+        line-height: 1.05;
+        margin: 0 0 0.6rem;
+      }
+      h2 {
+        font-size: 1.5rem;
+        margin: 2.5rem 0 1rem;
+        padding-bottom: 0.4rem;
+        border-bottom: 3px solid var(--text);
+        display: flex;
+        align-items: baseline;
+        gap: 0.7rem;
+      }
+      h2 .num {
+        font-family: var(--font-mono);
+        font-size: 0.82rem;
+        color: var(--accent);
+        font-weight: 700;
+        letter-spacing: 0.04em;
+      }
+      h3 {
+        font-size: 1.15rem;
+        margin: 0 0 0.4rem;
+        font-weight: 700;
+      }
+      h4 {
+        font-size: 1rem;
+        margin: 0 0 0.3rem;
+        font-weight: 700;
+      }
+      p {
+        margin: 0 0 1rem;
+      }
+
+      /* --- Hero --- */
+      .hero {
+        padding: 1.5rem 0 2rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 3px solid var(--text);
+      }
+      .eyebrow {
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        color: var(--accent);
+        margin-bottom: 0.9rem;
+      }
+      .subtitle {
+        font-size: 1.1rem;
+        color: var(--text-muted);
+        max-width: 70ch;
+        margin: 0 0 1rem;
+      }
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .tag {
+        display: inline-block;
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        padding: 0.25rem 0.6rem;
+        background: var(--surface-sunken);
+        color: var(--text);
+        border: 1px solid var(--border-strong);
+      }
+      .tag.amber {
+        background: var(--warning);
+        border-color: var(--warning);
+        color: var(--text);
+      }
+      .tag.teal {
+        background: var(--solution);
+        border-color: var(--solution);
+        color: var(--surface);
+      }
+
+      /* Bauhaus signature: geometric shape cluster (optional) */
+      .hero-shapes {
+        position: relative;
+        height: 90px;
+        margin-bottom: 1.2rem;
+      }
+      .hero-shapes .circle {
+        position: absolute;
+        top: 0;
+        right: 180px;
+        width: 64px;
+        height: 64px;
+        background: var(--problem);
+        border-radius: 50%;
+      }
+      .hero-shapes .square {
+        position: absolute;
+        top: 26px;
+        right: 90px;
+        width: 56px;
+        height: 56px;
+        background: var(--solution);
+      }
+      .hero-shapes .tri {
+        position: absolute;
+        top: 8px;
+        right: 0;
+        width: 0;
+        height: 0;
+        border-left: 32px solid transparent;
+        border-right: 32px solid transparent;
+        border-bottom: 56px solid var(--warning);
+      }
+      .hero-shapes .bar {
+        position: absolute;
+        bottom: 0;
+        right: 230px;
+        width: 100px;
+        height: 14px;
+        background: var(--text);
+      }
+
+      /* --- Scorecard / stat cards --- */
+      .scorecard,
+      .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 0;
+        margin: 1.5rem 0 2rem;
+        border: 3px solid var(--text);
+      }
+      .score-card,
+      .stat-card {
+        padding: 1.3rem 1rem;
+        text-align: center;
+        border-right: 3px solid var(--text);
+        background: var(--surface-raised);
+      }
+      .score-card:last-child,
+      .stat-card:last-child {
+        border-right: none;
+      }
+
+      .score,
+      .stat-value {
+        font-family: var(--font-heading);
+        font-size: 2.6rem;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: -0.04em;
+      }
+      .score-card .label,
+      .stat-label {
+        font-family: var(--font-mono);
+        font-size: 0.62rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        margin-top: 0.5rem;
+      }
+      /* Semantic state classes — no nth-child decoration, no !important */
+      .score-good,
+      .stat-good {
+        background: var(--solution);
+        color: var(--surface);
+      }
+      .score-warn,
+      .stat-warn {
+        background: var(--warning);
+        color: var(--text);
+      }
+      .score-bad,
+      .stat-bad {
+        background: var(--problem);
+        color: var(--surface);
+      }
+
+      /* --- General cards --- */
+      .card {
+        background: var(--surface-raised);
+        border: 2px solid var(--text);
+        padding: 1.2rem 1.4rem;
+        margin-bottom: 1rem;
+        border-left: 8px solid var(--border-strong);
+      }
+      .card-problem {
+        border-left-color: var(--problem);
+      }
+      .card-solution {
+        border-left-color: var(--solution);
+      }
+      .card-warning {
+        border-left-color: var(--warning);
+      }
+
+      /* --- Issue cards --- */
+      .issue {
+        background: var(--surface-raised);
+        border: 2px solid var(--text);
+        padding: 1.2rem 1.4rem;
+        margin-bottom: 1rem;
+        border-left: 8px solid var(--border-strong);
+      }
+      .issue-critical {
+        border-left-color: var(--problem);
+      }
+      .issue-important {
+        border-left-color: var(--warning);
+      }
+      .issue-nice {
+        border-left-color: var(--solution);
+      }
+      .issue h3 {
+        margin-bottom: 0.3rem;
+      }
+      .issue .where {
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        color: var(--text-faint);
+        margin: 0.2rem 0 0.6rem;
+      }
+      .issue p:last-child {
+        margin-bottom: 0;
+      }
+
+      /* --- Severity badges --- */
+      .severity {
+        display: inline-block;
+        font-family: var(--font-mono);
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        padding: 0.22rem 0.6rem;
+        margin-bottom: 0.6rem;
+        color: var(--surface);
+      }
+      .severity-critical {
+        background: var(--problem);
+      }
+      .severity-important {
+        background: var(--warning);
+        color: var(--text);
+      }
+      .severity-nice {
+        background: var(--solution);
+      }
+
+      /* --- Inline badges --- */
+      .badge {
+        display: inline-block;
+        font-family: var(--font-mono);
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 0.2rem 0.55rem;
+        border: 1px solid var(--text);
+        color: var(--text);
+      }
+      .badge-critical {
+        background: var(--problem);
+        color: var(--surface);
+      }
+      .badge-high {
+        background: var(--warning);
+      }
+      .badge-medium {
+        background: var(--surface-sunken);
+      }
+      .badge-low {
+        background: var(--surface-raised);
+        color: var(--text-muted);
+      }
+      .badge-fixed {
+        background: var(--solution);
+        color: var(--surface);
+      }
+
+      /* --- Callouts --- */
+      .callout {
+        margin: 0.8rem 0 0;
+        padding: 0.8rem 1rem;
+        border: 1px solid var(--border-strong);
+        border-left: 4px solid var(--border-strong);
+        background: var(--surface-sunken);
+        font-size: 0.92rem;
+      }
+      .callout strong {
+        display: inline-block;
+        margin-right: 0.4rem;
+      }
+      .callout-teal,
+      .callout-solution {
+        border-left-color: var(--solution);
+        background: color-mix(
+          in srgb,
+          var(--solution) 10%,
+          var(--surface-raised)
+        );
+      }
+      .callout-amber,
+      .callout-warning {
+        border-left-color: var(--warning);
+        background: color-mix(
+          in srgb,
+          var(--warning) 18%,
+          var(--surface-raised)
+        );
+      }
+
+      /* --- Strengths --- */
+      .strengths {
+        display: grid;
+        gap: 0.5rem;
+        margin: 1rem 0 1.5rem;
+      }
+      .strength {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 0.9rem;
+        padding: 0.75rem 0;
+        border-bottom: 2px solid var(--border);
+      }
+      .strength .check {
+        font-family: var(--font-mono);
+        font-weight: 900;
+        color: var(--solution);
+        font-size: 1.3rem;
+        line-height: 1.3;
+      }
+      .strength .text strong {
+        display: block;
+        margin-bottom: 0.15rem;
+      }
+      .strength .text span {
+        color: var(--text-muted);
+        font-size: 0.92rem;
+      }
+
+      /* --- Tables --- */
+      .table-wrap {
+        overflow-x: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1rem 0 1.5rem;
+        font-size: 0.92rem;
+        border: 2px solid var(--text);
+      }
+      th {
+        text-align: left;
+        padding: 0.6rem 0.9rem;
+        background: var(--text);
+        color: var(--surface);
+        font-family: var(--font-mono);
+        font-size: 0.66rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border-right: 1px solid var(--border-strong);
+      }
+      th:last-child {
+        border-right: none;
+      }
+      td {
+        padding: 0.6rem 0.9rem;
+        border-top: 1px solid var(--border);
+        border-right: 1px solid var(--border);
+      }
+      td:last-child {
+        border-right: none;
+      }
+      tr:nth-child(even) td {
+        background: var(--surface-sunken);
+      }
+      table.compare td.yes {
+        color: var(--solution);
+        font-weight: 700;
+      }
+      table.compare td.no {
+        color: var(--problem);
+        font-weight: 700;
+      }
+
+      /* --- Code blocks + syntax highlighting --- */
+      pre {
+        background: var(--text);
+        color: var(--surface);
+        padding: 1rem 1.2rem;
+        margin: 1rem 0;
+        font-family: var(--font-mono);
+        font-size: 0.82rem;
+        line-height: 1.65;
+        overflow-x: auto;
+        border: 2px solid var(--text);
+      }
+      code {
+        font-family: var(--font-mono);
+      }
+      p code,
+      li code,
+      td code {
+        font-size: 0.88em;
+        background: var(--surface-sunken);
+        padding: 0.1rem 0.35rem;
+      }
+      .tok-keyword {
+        color: var(--warning);
+      }
+      .tok-type {
+        color: var(--warning);
+      }
+      .tok-string {
+        color: #95e1d3;
+      }
+      .tok-comment {
+        color: rgba(244, 244, 240, 0.45);
+        font-style: italic;
+      }
+      .tok-func {
+        color: #6eb5ff;
+      }
+      .tok-number {
+        color: var(--warning);
+      }
+      .tok-generic {
+        color: var(--problem);
+      }
+      .tok-builtin {
+        color: #6eb5ff;
+      }
+      .tok-punct {
+        color: rgba(244, 244, 240, 0.7);
+      }
+      .tok-attr {
+        color: var(--warning);
+      }
+
+      /* --- Dependency tree / ASCII diagrams --- */
+      .dep-tree {
+        background: var(--surface-sunken);
+        border: 2px solid var(--text);
+        padding: 1rem 1.2rem;
+        margin: 1rem 0;
+        font-family: var(--font-mono);
+        font-size: 0.82rem;
+        line-height: 1.7;
+        white-space: pre;
+        overflow-x: auto;
+      }
+      .dep-tree .root {
+        color: var(--accent);
+        font-weight: 700;
+      }
+      .dep-tree .ok {
+        color: var(--solution);
+      }
+      .dep-tree .unwanted {
+        color: var(--problem);
+      }
+
+      /* --- Inline node-and-arrow diagrams --- */
+      .diagram {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 1rem;
+        margin: 1rem 0;
+        background: var(--surface-raised);
+        border: 2px solid var(--text);
+      }
+      .node {
+        display: inline-block;
+        padding: 0.4rem 0.75rem;
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        font-weight: 700;
+        background: var(--surface-sunken);
+        border: 1px solid var(--text);
+      }
+      .node-core {
+        background: var(--accent);
+        color: var(--surface);
+      }
+      .node-problem {
+        background: var(--problem);
+        color: var(--surface);
+      }
+      .node-good {
+        background: var(--solution);
+        color: var(--surface);
+      }
+      .arrow {
+        color: var(--text-faint);
+        font-family: var(--font-mono);
+      }
+
+      /* --- Grids --- */
+      .grid-2 {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+        margin: 1rem 0;
+      }
+      .grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin: 1rem 0;
+      }
+
+      /* --- Inline TOC --- */
+      .toc {
+        background: var(--surface-raised);
+        border: 2px solid var(--text);
+        border-left: 6px solid var(--accent);
+        padding: 1rem 1.3rem;
+        margin: 1rem 0 1.5rem;
+      }
+      .toc h3 {
+        margin-bottom: 0.5rem;
+      }
+      .toc ul {
+        list-style: none;
+        padding: 0;
+      }
+      .toc li {
+        margin: 0.25rem 0;
+      }
+      .toc a {
+        color: var(--text);
+        text-decoration: none;
+        font-size: 0.92rem;
+        font-weight: 600;
+      }
+      .toc a:hover {
+        color: var(--accent);
+      }
+
+      /* --- Migration / numbered steps --- */
+      .migration-step {
+        display: grid;
+        grid-template-columns: 56px 1fr;
+        gap: 1rem;
+        margin: 1rem 0;
+        padding: 1.1rem;
+        background: var(--surface-raised);
+        border: 2px solid var(--text);
+        border-left: 6px solid var(--accent);
+      }
+      .migration-num {
+        font-family: var(--font-mono);
+        font-weight: 900;
+        font-size: 1.8rem;
+        color: var(--accent);
+        line-height: 1;
+      }
+      .migration-content h4 {
+        margin-bottom: 0.2rem;
+      }
+      .migration-content p {
+        margin-bottom: 0;
+        color: var(--text-muted);
+        font-size: 0.94rem;
+      }
+
+      /* --- Before/After comparison --- */
+      .compare-header {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+        margin: 1rem 0 0.5rem;
+      }
+      .compare-before,
+      .compare-after {
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        padding: 0.4rem 0.7rem;
+        color: var(--surface);
+      }
+      .compare-before {
+        background: var(--problem);
+      }
+      .compare-after {
+        background: var(--solution);
+      }
+      .compare-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+      }
+      .compare-row pre {
+        margin: 0;
+      }
+
+      /* --- Footer --- */
+      .footer {
+        margin-top: 2rem;
+        padding-top: 1rem;
+        border-top: 3px solid var(--text);
+        font-size: 0.82rem;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+      }
+
+      /* --- Responsive --- */
+      @media (min-width: 1024px) {
+        .sidebar {
+          display: block;
+        }
+      }
+      @media (max-width: 768px) {
+        .layout {
+          flex-direction: column;
+          padding: 1rem;
+        }
+        .top-bar {
+          padding: 0.6rem 1rem;
+          flex-wrap: wrap;
+          gap: 0.3rem;
+        }
+        .grid-2,
+        .grid-3 {
+          grid-template-columns: 1fr;
+        }
+        .compare-header,
+        .compare-row {
+          grid-template-columns: 1fr;
+        }
+        .scorecard,
+        .stat-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .score-card:nth-child(2),
+        .stat-card:nth-child(2) {
+          border-right: none;
+        }
+        .score-card:nth-child(1),
+        .stat-card:nth-child(1),
+        .score-card:nth-child(2),
+        .stat-card:nth-child(2) {
+          border-bottom: 3px solid var(--text);
+        }
+        .migration-step {
+          grid-template-columns: 1fr;
+        }
+        .hero-shapes {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Full-bleed top bar (optional — remove for quieter reports) -->
+    <div class="top-bar">
+      <span>FLEET LIBRARY UTILIZATION AUDIT</span>
+      <span>2026-11-23</span>
+      <span>GO-SERVICE-TEMPLATE ARCHETYPE</span>
+    </div>
+
+    <div class="layout">
+      <!-- Sidebar TOC (hidden below 1024px; use inline .toc if you prefer) -->
+      <aside class="sidebar" data-nav>
+        <nav>
+          <div class="label">Contents</div>
+          <a href="#scorecard">Scorecard</a>
+          <a href="#summary">Summary</a>
+          <a href="#strengths">Already excellent</a>
+          <a href="#findings">Findings</a>
+          <a href="#versions">Refresh train</a>
+          <a href="#adoption">Absent-library verdicts</a>
+          <a href="#reports">The 21 reports</a>
+          <a href="#method">Method and verification</a>
+        </nav>
+      </aside>
+
+      <!-- Main content -->
+      <main class="main">
+        <!-- Hero -->
+        <header class="hero">
+          <!-- Optional Bauhaus signature: geometric shape cluster. Remove for quieter hero. -->
+          <div class="hero-shapes">
+            <div class="bar"></div>
+            <div class="circle"></div>
+            <div class="square"></div>
+            <div class="tri"></div>
+          </div>
+          <div class="eyebrow">LIBRARY DEEP DIVE SERIES &middot; 2026-11-23</div>
+          <h1>Fleet library utilization audit</h1>
+          <p class="subtitle">
+            Twenty-one LarsArtmann libraries audited against the go-service-template
+            archetype: what actually runs, what rides the go-appkit preset, what is
+            absent by design, and where each improvement belongs so the whole fleet
+            benefits instead of one repo.
+          </p>
+          <div class="meta">
+            <span class="tag amber">Scope: 21 libraries</span>
+            <span class="tag">Consumer: single module, Go 1.27.4</span>
+            <span class="tag teal">Status: final</span>
+          </div>
+        </header>
+
+        <!-- Scorecard -->
+        <section id="scorecard" class="scorecard">
+          <div class="score-card score-good">
+            <div class="score">0</div>
+            <div class="label">Blocking template defects</div>
+          </div>
+          <div class="score-card score-bad">
+            <div class="score">2</div>
+            <div class="label">Verified upstream bugs</div>
+          </div>
+          <div class="score-card score-warn">
+            <div class="score">10</div>
+            <div class="label">Pins behind latest, all riding trains</div>
+          </div>
+          <div class="score-card">
+            <div class="score">21</div>
+            <div class="label">Libraries audited</div>
+          </div>
+        </section>
+
+        <!-- Summary -->
+        <section id="summary">
+          <h2><span class="num">00</span>Summary</h2>
+          <p>
+            The archetype's shape is superb: the composition root is byte-for-byte the
+            preset's documented canonical pattern, the default binary carries zero
+            event-sourcing weight (verified with go list -deps), the spine's
+            production surface was live-verified end to end, and all five absent
+            libraries are absent for the right reasons. "To the max" is gated
+            upstream, not locally: the go-appkit preset under-exposes its own legs
+            (no dashboard, health, middleware, or hub option passthrough), several
+            fleet libs sit graph-only, and the appkit refresh train is due. The
+            template owes documentation and two small tests, not re-architecture.
+          </p>
+          <div class="callout callout-amber">
+            <strong>The bottom line</strong>
+            Do not re-integrate libraries template-locally. Route the work where every
+            fleet consumer benefits: two bug fixes and the option passthroughs belong
+            in go-appkit and its libs, the pin refresh is one stamped train, and the
+            template's own share is docs plus a POST example and two tests.
+          </div>
+        </section>
+
+        <!-- Strengths -->
+        <section id="strengths">
+          <h2><span class="num">&#9670;</span>What's already excellent</h2>
+          <p>
+            Before the findings: what the audits confirmed works, with runtime
+            evidence rather than code review alone.
+          </p>
+
+          <div class="strengths">
+            <div class="strength">
+              <div class="check">+</div>
+              <div class="text">
+                <strong>Canonical composition root</strong>
+                <span>internal/app/service.go matches the preset's own documented
+                example (README 49-65); the config split is fleet doctrine, and
+                cmdguard's serve verb is used flawlessly (exit codes, single error
+                print, five-phase SIGTERM drain, all live-verified).</span>
+              </div>
+            </div>
+            <div class="strength">
+              <div class="check">+</div>
+              <div class="text">
+                <strong>Zero accidental weight</strong>
+                <span>go list -deps proves no go-cqrs-lite or go-idempotency or
+                go-retry package links into the default binary; the build-tag-gated
+                events skeleton keeps 24 modules out until a domain needs them.</span>
+              </div>
+            </div>
+            <div class="strength">
+              <div class="check">+</div>
+              <div class="text">
+                <strong>The spine is real and measured</strong>
+                <span>Server-Timing on every response, probes and drain flip
+                verified by curl, the dashboard's SSE patches inspected on the wire,
+                and the wrapper verified to sit on cqrs-lite system.New per
+                ADR-0123.</span>
+              </div>
+            </div>
+            <div class="strength">
+              <div class="check">+</div>
+              <div class="text">
+                <strong>Every absence is a decision</strong>
+                <span>All five adoption analyses (business-rules, filewatcher,
+                daemon, credentials-store, cqrs-htmx) conclude DO NOT ADOPT with
+                per-capability reasons; none is an oversight.</span>
+              </div>
+            </div>
+            <div class="strength">
+              <div class="check">+</div>
+              <div class="text">
+                <strong>Cross-report consistency held</strong>
+                <span>The 30-second WriteTimeout SSE cut was independently verified
+                from three sides (go-appkit, go-sse, go-health) and every report
+                pair that touches a shared mechanism cites its siblings.</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Findings -->
+        <section id="findings">
+          <h2><span class="num">01</span>Findings</h2>
+          <p>
+            Ordered by impact. Each finding names the routing the audits gave it:
+            fix it in the library, in the go-appkit preset, in this template, or
+            deliberately not now.
+          </p>
+
+          <div class="issue issue-critical" id="issue-1">
+            <span class="severity severity-critical"
+              >Blocking &middot; silent security degrade</span
+            >
+            <h3>APPKIT_SECURITY=strict via env silently degrades to the standard profile</h3>
+            <div class="where">
+              go-appkit preset/preset.go:95-99 + preset/security.go:24-32 &middot;
+              contradicts preset README:44-45
+            </div>
+            <p>
+              resolveLegs records strict, but applySecurity receives cfg.Security,
+              which is nil when the leg is env-driven; securityMiddlewares(nil)
+              then defaults the profile to Standard. No OriginCheck, no boot
+              rejection, and no test pins the env-strict path end to end. An
+              operator who flips the documented env var believes they are in
+              strict mode and are not.
+            </p>
+            <div class="callout callout-teal">
+              <strong>Fix [LIB-UPSTREAM]</strong>
+              Thread the resolved profile into applySecurity and add an env-strict
+              integration test. Cross-file: go-appkit.md Gaps #1.
+            </div>
+          </div>
+
+          <div class="issue issue-critical" id="issue-2">
+            <span class="severity severity-critical"
+              >Blocking &middot; boot panic on a documented opt-out</span
+            >
+            <h3>NoDashboard=true panics inside preset.New at the current module resolution</h3>
+            <div class="where">
+              go-health handlers.go:160 (unstamped-probe guard) via appkit
+              health/mount.go:122,105 &middot; empirically reproduced
+            </div>
+            <p>
+              The appkit health module floors go-health at v0.8.1 while the
+              template's graph resolves v0.10.0 (MVS). At v0.10.0 the probe
+              handler guards against unstamped probes and panics; at the floored
+              v0.8.1 the same code boots fine. The dashboard opt-out, a documented
+              posture, is therefore broken by pure version skew.
+            </p>
+            <div class="callout callout-teal">
+              <strong>Fix [PRESET-UPSTREAM]</strong>
+              Bump appkit health's go-health floor to v0.10.0; harden the guard in
+              go-health to error instead of panic. Cross-file: go-health.md.
+            </div>
+          </div>
+
+          <div class="issue issue-important" id="issue-3">
+            <span class="severity severity-important"
+              >Important &middot; silent degradation on by default</span
+            >
+            <h3>Default WriteTimeout cuts every SSE stream at 30 seconds, including the always-on dashboard</h3>
+            <div class="where">
+              internal/app/service.go leaves Timeouts zero &middot; go-appkit
+              health/doc.go:124-129 documents the dashboard cut as
+              &ldquo;degrades but works&rdquo;
+            </div>
+            <p>
+              Verified independently from three sides (go-appkit, go-sse,
+              go-health): the dashboard's /health/sse stream dies at 30.007s and
+              APPKIT_REALTIME=on produces /events streams that die the same way.
+              Heartbeats reset proxy timers, not http.Server deadlines. go-sse
+              itself documents nothing about write deadlines, so the trap is
+              invisible in everything the library ships.
+            </p>
+            <div class="callout callout-teal">
+              <strong>Fix [PRESET-UPSTREAM] + [LIB-UPSTREAM]</strong>
+              The preset applies its NoTimeout sentinel for SSE-serving routes (or
+              documents the pairing in the env grammar); go-sse adds a
+              &ldquo;server requirements&rdquo; note.
+            </div>
+          </div>
+
+          <div class="issue issue-important" id="issue-4">
+            <span class="severity severity-important"
+              >Important &middot; due maintenance</span
+            >
+            <h3>The appkit refresh train is due: core v0.13.0 and cqrs v0.10.0 shipped after the stamp</h3>
+            <div class="where">
+              AGENTS.md version stamp pins core v0.12.0 / cqrs v0.9.0 &middot;
+              latest tags v0.13.0 / v0.10.0 (2026-11-22)
+            </div>
+            <p>
+              The gap contains real fixes: the sqliteengine EnforceCap
+              journal-writer deadlock with per-connection busy_timeout, SSE
+              malformed Last-Event-ID now returning 400 instead of hanging, a
+              RawQuery decoder crash-loop fix, and the system.Standard topology.
+              The bump is MVS-clean (cqrs v0.10.0 has zero appkit requires; core
+              v0.13.0 is additive) and is the template's own pin to move, in one
+              stamped ritual: pins, AGENTS.md stamp table, dogfood probe.
+            </p>
+            <div class="callout callout-teal">
+              <strong>Fix [TEMPLATE]</strong>
+              One refresh ritual; the ten other drifted pins (see the refresh
+              train table) ride their owners' next releases.
+            </div>
+          </div>
+
+          <div class="issue issue-important" id="issue-5">
+            <span class="severity severity-important"
+              >Important &middot; third-party code at runtime</span
+            >
+            <h3>The dashboard serves CDN assets while embedded assets sit linked but unserved</h3>
+            <div class="where">
+              go-health-dashboard view.templ:122,125-141 &middot; embedded SDK
+              linked via handlers.go:359 but /health/datastar.js 404s
+            </div>
+            <p>
+              Runtime-verified: /health loads Tailwind from cdn.tailwindcss.com
+              (the Play CDN, a development tool) and Datastar 1.0.3 from jsdelivr
+              via a deprecated alias, while the embedded Datastar 1.0.4 bytes are
+              already linked into the binary. The preset passes zero dashboard
+              options, so WithEmbeddedDatastarSDK and WithCSSPath are unreachable.
+              This is CSP-hostile and leaks a runtime dependency on two CDNs.
+            </p>
+            <div class="callout callout-teal">
+              <strong>Fix [PRESET-UPSTREAM] + [LIB-UPSTREAM]</strong>
+              Preset passes the dashboard options; go-health-dashboard embeds a
+              compiled baseline stylesheet and an ETag'd SDK handler.
+              Cross-file: go-datastar.md gap 1, go-health-dashboard.md.
+            </div>
+          </div>
+
+          <div class="issue issue-important" id="issue-6">
+            <span class="severity severity-important"
+              >Important &middot; lost machine-readability</span
+            >
+            <h3>go-error-family BSD exit codes never reach os.Exit</h3>
+            <div class="where">
+              cmdguard cli_errors_json.go:39-53 duck-types its own ExitCoder &middot;
+              go-error-family error.go:324 returns 0 when unset
+            </div>
+            <p>
+              The whole error story is built on classified errors (family + code,
+              machine-readable), and the chain is superb through HTTP rendering.
+              But cmdguard never imports the lib: family exit codes (EX_DATAERR
+              65, EX_NOHOST 68, EX_SOFTWARE 70, EX_TEMPFAIL 75) are lost, and
+              cmdguard's machine-readable error hints come from its own sentinel
+              table instead of the family taxonomy. Systemd units and wrappers
+              read exit codes, not stderr.
+            </p>
+            <div class="callout callout-teal">
+              <strong>Fix [LIB-UPSTREAM]</strong>
+              A thin seam (adapter or shared interface) so family-bearing errors
+              map to their BSD codes at the CLI boundary. Cross-file:
+              go-error-family.md gap G1.
+            </div>
+          </div>
+
+          <div class="issue issue-nice" id="issue-7">
+            <span class="severity severity-nice"
+              >Nice to have &middot; first impression</span
+            >
+            <h3>The pretty 404 ships as an unstyled fragment</h3>
+            <div class="where">
+              appkit errorpages.go:175 calls WriteNotFound404 &middot;
+              templ-components errorpage/handler.go:318-347 ships no CSS even on
+              the document path
+            </div>
+            <p>
+              Runtime-verified: the 404 is a bare main fragment with Tailwind
+              classes but no doctype, charset, viewport, or stylesheet. The
+              template's own landing page advertises pretty error pages; what
+              adopters actually serve is unstyled. The lib should embed a compiled
+              baseline stylesheet so every fleet consumer benefits without a
+              Tailwind pipeline.
+            </p>
+            <div class="callout callout-teal">
+              <strong>Fix [LIB-UPSTREAM]</strong>
+              Mirror the layout/embed.go htmx.min.js precedent. Cross-file:
+              templ-components.md top gap.
+            </div>
+          </div>
+
+          <div class="issue issue-nice" id="issue-8">
+            <span class="severity severity-nice"
+              >Nice to have &middot; one-liners</span
+            >
+            <h3>Two one-line preset fixes: the dashboard Version card and criticality</h3>
+            <div class="where">
+              preset/preset.go:109 omits health.WithVersion(cfg.Version) &middot;
+              zero health.Option passthrough blocks WithCriticalServices
+            </div>
+            <p>
+              The dashboard's Version stat card renders &ldquo;unknown&rdquo;
+              although the template ldflags-stamps Version and the preset Config
+              carries it. And because the preset passes no health options,
+              readiness can never flip 503 on a failing dependency: every check
+              is warn-only. Both unlock with a single options field on
+              preset.Config.
+            </p>
+            <div class="callout callout-teal">
+              <strong>Fix [PRESET-UPSTREAM]</strong>
+              One WithVersion call now; one HealthOptions (and DashboardOptions)
+              passthrough field. Cross-file: go-health-dashboard.md, go-health.md.
+            </div>
+          </div>
+
+          <div class="issue issue-nice" id="issue-9">
+            <span class="severity severity-nice"
+              >Nice to have &middot; teaching posture</span
+            >
+            <h3>The example API demonstrates only a GET; the blessed POST path exists unwalked</h3>
+            <div class="where">
+              internal/api/routes.go:25 &middot; httpx ResultHandlerWithValidation
+              (bind.go:58) unused anywhere in the template
+            </div>
+            <p>
+              Every adopter writes request bodies. The framework's decode path
+              (1 MiB cap, bind.* Rejection codes, Validator hook) is exactly what
+              the archetype should teach, and the same is true of a classified
+              404 producer: routes_test.go tests neither the rendered error shape
+              nor the describe contract, and the cmdguard audit found zero CLI
+              tests.
+            </p>
+            <div class="callout callout-teal">
+              <strong>Fix [TEMPLATE]</strong>
+              One POST example handler, one rendered-error-shape test, one
+              testutil.AssertDescribeContract test. Cross-file: go-codec.md #1,
+              go-error-family.md #2, cmdguard.md gaps.
+            </div>
+          </div>
+
+          <div class="issue issue-nice" id="issue-10">
+            <span class="severity severity-nice"
+              >Nice to have &middot; signposts</span
+            >
+            <h3>Adopter routing exists only in tribal knowledge</h3>
+            <div class="where">
+              README / FEATURES / DOMAIN_LANGUAGE &middot; zero mentions of
+              cqrs-htmx, business-rules, credentials-store, daemon, filewatcher
+            </div>
+            <p>
+              The 2026-11-21 owner ruling (new service on the preset spine,
+              cqrs-htmx composes on top via setup.RunWithAppkit) lives in no
+              README on either side of the bridge. A web-app team cloning this
+              template finds no signpost, and the same is true for the four
+              correctly-absent libraries whose adopter stories are real but
+              undocumented.
+            </p>
+            <div class="callout callout-teal">
+              <strong>Fix [TEMPLATE, docs-only]</strong>
+              A &ldquo;Service or web app?&rdquo; routing box in the README, one
+              adopter-routing line per absent lib, and the events skeleton
+              comment drift fixed while there. Cross-file: cqrs-htmx.md,
+              go-business-rules.md, go-credentials-store.md, go-daemon.md,
+              go-filewatcher.md.
+            </div>
+          </div>
+        </section>
+
+        <section id="versions">
+          <h2><span class="num">02</span>The refresh train</h2>
+          <p>
+            Ten pins sit behind their latest tags. Only two are the template's
+            own to move (its direct go-appkit requires, MVS-clean); the rest ride
+            their owners' next releases, which is the correct collective posture:
+            bump at the source, every consumer advances.
+          </p>
+          <div class="table-wrap">
+            <table class="compare">
+              <thead>
+                <tr>
+                  <th>Module</th>
+                  <th>Pin</th>
+                  <th>Latest</th>
+                  <th>What the gap contains</th>
+                  <th>Who bumps first</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>go-appkit (core)</td>
+                  <td>v0.12.0</td>
+                  <td class="no">v0.13.0</td>
+                  <td>Listener + LogHandler seams, additive</td>
+                  <td class="no">TEMPLATE, now</td>
+                </tr>
+                <tr>
+                  <td>go-appkit/cqrs</td>
+                  <td>v0.9.0</td>
+                  <td class="no">v0.10.0</td>
+                  <td>EnforceCap deadlock fix, SSE 400 hardening, system.Standard</td>
+                  <td class="no">TEMPLATE, now</td>
+                </tr>
+                <tr>
+                  <td>go-appkit/security</td>
+                  <td>v0.2.0</td>
+                  <td>v0.3.0</td>
+                  <td>lo refactor, behavior-identical (indirect)</td>
+                  <td>appkit preset train</td>
+                </tr>
+                <tr>
+                  <td>httputil</td>
+                  <td>v1.8.0</td>
+                  <td>v1.9.0</td>
+                  <td>Compression sniff fix etc., all unwired in the chain</td>
+                  <td>appkit integration train</td>
+                </tr>
+                <tr>
+                  <td>go-idempotency</td>
+                  <td>v0.3.2</td>
+                  <td class="no">v0.6.0</td>
+                  <td>Forever claims, idemtest kit, WithClock (largest gap)</td>
+                  <td>cqrs-lite middleware, then appkit</td>
+                </tr>
+                <tr>
+                  <td>go-sse</td>
+                  <td>v0.6.2</td>
+                  <td>v0.7.0</td>
+                  <td>DefaultSubscriberBuffer export; not felt</td>
+                  <td>appkit train</td>
+                </tr>
+                <tr>
+                  <td>go-datastar</td>
+                  <td>v0.6.2</td>
+                  <td>v0.7.0</td>
+                  <td>ETagFor, heartbeat toggle; CDN pin decides runtime anyway</td>
+                  <td>go-health-dashboard release</td>
+                </tr>
+                <tr>
+                  <td>go-etag (entitytag, server)</td>
+                  <td>v0.6.1</td>
+                  <td>v0.6.2</td>
+                  <td>error-family bump only, functionally empty</td>
+                  <td>appkit httpx release</td>
+                </tr>
+                <tr>
+                  <td>go-codec</td>
+                  <td>v0.3.3</td>
+                  <td>v0.3.4</td>
+                  <td>Chore-only, zero .go changes</td>
+                  <td>appkit train</td>
+                </tr>
+                <tr>
+                  <td>go-atomic-write</td>
+                  <td>v0.6.2</td>
+                  <td>v0.7.0</td>
+                  <td>WriteFuncWithPerm, parent-dir MkdirAll fix</td>
+                  <td>samber-do-auditlog, then cmdguard</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Current pins: go-error-family v0.12.0, go-retry v0.9.0, go-health
+            v0.10.0, go-health-dashboard v0.13.3, cmdguard v5.1.0,
+            templ-components v1.27.2 (the template's own require is the graph's
+            MVS floor for it). The appkit bump must ride the documented ritual:
+            pins, AGENTS.md stamp table, dogfood probe, in one commit.
+          </p>
+        </section>
+
+        <section id="adoption">
+          <h2><span class="num">03</span>Absent-library verdicts</h2>
+          <p>
+            Five libraries are not in the module graph at all. Each audit asked
+            whether that is an oversight or a decision; all five are decisions,
+            recorded here so the next session does not re-derive them.
+          </p>
+          <div class="table-wrap">
+            <table class="compare">
+              <thead>
+                <tr>
+                  <th>Library</th>
+                  <th>Verdict</th>
+                  <th>Why</th>
+                  <th>Template action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>go-business-rules</td>
+                  <td class="no">DO NOT ADOPT</td>
+                  <td>
+                    Severity-aware validation framework for domain types; a
+                    domainless archetype must not pre-decide where validation
+                    lives. Seven fleet consumers use it adopter-locally, the
+                    correct home.
+                  </td>
+                  <td>One docs pointer</td>
+                </tr>
+                <tr>
+                  <td>go-filewatcher</td>
+                  <td class="no">DO NOT ADOPT</td>
+                  <td>
+                    The fleet's config story is deliberately read-once plus
+                    restart (hot-reload is a demand-gated non-goal battery in
+                    go-appkit/config; no ExecReload in the systemd unit).
+                  </td>
+                  <td>One docs pointer</td>
+                </tr>
+                <tr>
+                  <td>go-daemon</td>
+                  <td class="no">DO NOT ADOPT</td>
+                  <td>
+                    Socket-daemon building blocks, not a daemonizer; the preset's
+                    sd_notify spine already owns the lifecycle and adopting would
+                    double-fire notifications. Right tool for eight other fleet
+                    daemons.
+                  </td>
+                  <td>One docs paragraph</td>
+                </tr>
+                <tr>
+                  <td>go-credentials-store</td>
+                  <td class="no">DO NOT ADOPT</td>
+                  <td>
+                    A service-side encrypted credential store inverts the
+                    archetype's deploy-time secret posture (env and files via
+                    config.Load). Adopter-local seam exists (bank-sync pattern)
+                    for services that bank third-party credentials.
+                  </td>
+                  <td>One docs paragraph</td>
+                </tr>
+                <tr>
+                  <td>cqrs-htmx</td>
+                  <td class="yes">Correctly absent</td>
+                  <td>
+                    The fleet's full web-app framework; siblings over one core
+                    with a one-way bridge (setup.RunWithAppkit composes it on top
+                    of the preset spine). A web-app team should adopt it, not
+                    grow this template blindly.
+                  </td>
+                  <td>README routing box</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="reports">
+          <h2><span class="num">04</span>The 21 reports</h2>
+          <p>
+            Sorted by adoption score. Low scores here usually mean correct
+            posture, not neglect: a graph-only or absent library that the
+            archetype should not wire scores low by construction, and each
+            report's Verdict section says so explicitly. Every score is
+            re-derivable from its report's capability inventory (rubric in the
+            method section).
+          </p>
+          <div class="table-wrap">
+            <table class="compare">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Library</th>
+                  <th>Layer</th>
+                  <th>Pin &rarr; latest</th>
+                  <th>Score</th>
+                  <th>One-line verdict</th>
+                  <th>Report</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>1</td><td>go-sse</td><td>Preset-mediated</td>
+                  <td>v0.6.2 &rarr; v0.7.0</td><td class="yes">77</td>
+                  <td>Best-leveraged: two mediated runtime paths; the WriteTimeout trap is upstream's</td>
+                  <td><a href="go-sse.md">go-sse.md</a></td>
+                </tr>
+                <tr>
+                  <td>2</td><td>go-retry</td><td>Graph-only (correct)</td>
+                  <td>v0.9.0 = latest</td><td class="yes">75</td>
+                  <td>Nothing to retry in the archetype; events leg covers redelivery when wired</td>
+                  <td><a href="go-retry.md">go-retry.md</a></td>
+                </tr>
+                <tr>
+                  <td>3</td><td>go-datastar</td><td>Preset-mediated</td>
+                  <td>v0.6.2 &rarr; v0.7.0</td><td>67</td>
+                  <td>Live patches verified; embedded 1.0.4 SDK linked but unserved (CDN pin wins)</td>
+                  <td><a href="go-datastar.md">go-datastar.md</a></td>
+                </tr>
+                <tr>
+                  <td>4</td><td>go-error-family</td><td>Preset-mediated</td>
+                  <td>v0.12.0 = latest</td><td>59</td>
+                  <td>Classification chain superb through HTTP; BSD exit codes lost at the CLI seam</td>
+                  <td><a href="go-error-family.md">go-error-family.md</a></td>
+                </tr>
+                <tr>
+                  <td>5</td><td>templ-components</td><td>Preset-mediated</td>
+                  <td>v1.27.2 = latest</td><td>59</td>
+                  <td>404 and dashboard render for free; the error page ships unstyled</td>
+                  <td><a href="templ-components.md">templ-components.md</a></td>
+                </tr>
+                <tr>
+                  <td>6</td><td>go-appkit</td><td>Direct framework</td>
+                  <td>core v0.12.0 &rarr; v0.13.0, cqrs v0.9.0 &rarr; v0.10.0</td><td>53</td>
+                  <td>Canonical shape, superb spine; refresh train due and strict-env bug upstream</td>
+                  <td><a href="go-appkit.md">go-appkit.md</a></td>
+                </tr>
+                <tr>
+                  <td>7</td><td>cmdguard</td><td>Direct</td>
+                  <td>v5.1.0 = latest</td><td>50</td>
+                  <td>Thin slice used flawlessly; describe contract and CLI untested</td>
+                  <td><a href="cmdguard.md">cmdguard.md</a></td>
+                </tr>
+                <tr>
+                  <td>8</td><td>httputil</td><td>Preset-mediated (the spine)</td>
+                  <td>v1.8.0 &rarr; v1.9.0</td><td>50</td>
+                  <td>The appkit stack is built on it; half its surface unwired upstream</td>
+                  <td><a href="httputil.md">httputil.md</a></td>
+                </tr>
+                <tr>
+                  <td>9</td><td>go-health-dashboard</td><td>Preset-mediated</td>
+                  <td>v0.13.3 = latest</td><td>50</td>
+                  <td>Rich always-on live dashboard; Version card unknown, CDN assets</td>
+                  <td><a href="go-health-dashboard.md">go-health-dashboard.md</a></td>
+                </tr>
+                <tr>
+                  <td>10</td><td>go-atomic-write</td><td>Graph-only (DCE'd)</td>
+                  <td>v0.6.2 &rarr; v0.7.0</td><td>50</td>
+                  <td>Proven dead-code-eliminated; crash-safe audit exports the moment they are used</td>
+                  <td><a href="go-atomic-write.md">go-atomic-write.md</a></td>
+                </tr>
+                <tr>
+                  <td>11</td><td>go-health</td><td>Preset-mediated</td>
+                  <td>v0.10.0 = latest</td><td>36</td>
+                  <td>Probes and drain flip superb; empty registry and the NoDashboard skew panic</td>
+                  <td><a href="go-health.md">go-health.md</a></td>
+                </tr>
+                <tr>
+                  <td>12</td><td>cqrs-htmx</td><td>Absent (correct)</td>
+                  <td>v4.19.0 family</td><td>33</td>
+                  <td>Correctly absent sibling stack; missing its README signpost</td>
+                  <td><a href="cqrs-htmx.md">cqrs-htmx.md</a></td>
+                </tr>
+                <tr>
+                  <td>13</td><td>go-cqrs-lite</td><td>Graph-only via events tag</td>
+                  <td>one train behind</td><td>30</td>
+                  <td>Zero default weight verified; wrapper sits on system.New; skeleton comment drift</td>
+                  <td><a href="go-cqrs-lite.md">go-cqrs-lite.md</a></td>
+                </tr>
+                <tr>
+                  <td>14</td><td>go-codec</td><td>Graph-only</td>
+                  <td>v0.3.3 &rarr; v0.3.4 (chore)</td><td>25</td>
+                  <td>The JSON path runs stdlib; the negotiation battery exists uncalled</td>
+                  <td><a href="go-codec.md">go-codec.md</a></td>
+                </tr>
+                <tr>
+                  <td>15</td><td>go-output</td><td>Graph-only (dormant)</td>
+                  <td>v0.38.7 = latest</td><td>14</td>
+                  <td>Batteries print via fmt; the structured-output plumbing never activated</td>
+                  <td><a href="go-output.md">go-output.md</a></td>
+                </tr>
+                <tr>
+                  <td>16</td><td>go-etag</td><td>Graph-only</td>
+                  <td>v0.6.1 &rarr; v0.6.2 (empty)</td><td class="no">0</td>
+                  <td>httpx.Conditional exists with zero call sites; one-line demo candidate</td>
+                  <td><a href="go-etag.md">go-etag.md</a></td>
+                </tr>
+                <tr>
+                  <td>17</td><td>go-idempotency</td><td>Graph-only</td>
+                  <td>v0.3.2 &rarr; v0.6.0</td><td class="no">0</td>
+                  <td>Consumer-owned by doctrine; middleware.HTTP merits a docs breadcrumb</td>
+                  <td><a href="go-idempotency.md">go-idempotency.md</a></td>
+                </tr>
+                <tr>
+                  <td>18</td><td>go-business-rules</td><td>Absent (correct)</td>
+                  <td>v2.2.1 = latest</td><td class="no">0</td>
+                  <td>Domain machinery; seven fleet consumers use it adopter-locally</td>
+                  <td><a href="go-business-rules.md">go-business-rules.md</a></td>
+                </tr>
+                <tr>
+                  <td>19</td><td>go-filewatcher</td><td>Absent (correct)</td>
+                  <td>v2.5.0 = latest</td><td class="no">0</td>
+                  <td>Read-once plus restart is the deliberate fleet reload story</td>
+                  <td><a href="go-filewatcher.md">go-filewatcher.md</a></td>
+                </tr>
+                <tr>
+                  <td>20</td><td>go-daemon</td><td>Absent (correct)</td>
+                  <td>v0.4.0 = latest</td><td class="no">0</td>
+                  <td>Socket-daemon blocks; the preset sd_notify spine owns the lifecycle</td>
+                  <td><a href="go-daemon.md">go-daemon.md</a></td>
+                </tr>
+                <tr>
+                  <td>21</td><td>go-credentials-store</td><td>Absent (correct)</td>
+                  <td>v0.4.3 = latest</td><td class="no">0</td>
+                  <td>Inverts deploy-time secret posture; adopter-local seam exists</td>
+                  <td><a href="go-credentials-store.md">go-credentials-store.md</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout callout-amber">
+            <strong>Read the zeros correctly</strong>
+            A zero here states that nothing of the library executes in the
+            template binary, which the audits verified is the right posture for
+            each case. go-daemon's score is formally vacuous (zero applicable
+            rows); its report explains why that is honesty, not a dodge.
+          </div>
+        </section>
+
+        <section id="method">
+          <h2><span class="num">05</span>Method and verification</h2>
+          <p>
+            Twenty-one parallel deep-dive audits, one per library, each against
+            the library's local checkout at HEAD (2026-11-23) and the template's
+            single module. Shared brief, shared schema, shared scoring rubric:
+            count inventory rows N, drop Not-applicable rows to get A, score
+            Fully leveraged 1 / Partially used 0.5 / Missed or Misused 0, and the
+            adoption score is round(100 &times; &Sigma; / A). Bands: very high
+            85+, high 70-84, moderate 50-69, low below 50. Every N/A row carries
+            a reason; a claim without a file:line citation is marked UNVERIFIED
+            or absent.
+          </p>
+          <p>
+            Gates the series passed before shipping: structure check (nine schema
+            headings per report), score reconciliation (every claimed score
+            re-derived from its inventory table; three drifts found and fixed),
+            and command replay (294 verify commands executed, the remaining
+            expected-empty greps and runtime probes verified by their auditors).
+            The working tree stayed green throughout: one leaked scratch file
+            from a replayed heredoc was removed and go build plus go vet pass.
+          </p>
+          <div class="table-wrap">
+            <table class="compare">
+              <thead>
+                <tr>
+                  <th>Re-derive this</th>
+                  <th>Command</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Report count</td>
+                  <td><code>ls docs/review/libs/*.md | wc -l</code> (expect 21)</td>
+                </tr>
+                <tr>
+                  <td>Claimed scores</td>
+                  <td><code>grep -H 'Adoption score' docs/review/libs/*.md</code></td>
+                </tr>
+                <tr>
+                  <td>Template health</td>
+                  <td><code>go build ./... &amp;&amp; go vet ./...</code></td>
+                </tr>
+                <tr>
+                  <td>Library version facts</td>
+                  <td><code>git -C /home/lars/projects/&lt;lib&gt; describe --tags &amp;&amp; git -C /home/lars/projects/&lt;lib&gt; log -1 --format='%h %ci'</code></td>
+                </tr>
+                <tr>
+                  <td>Per-report evidence</td>
+                  <td>The &ldquo;How to verify&rdquo; block inside each report; each was replayed by its auditor and sampled by the orchestrator</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Routing vocabulary used across the series, honoring the owner's
+            constraint that per-project re-integration wastes the fleet's
+            limited time: [LIB-UPSTREAM] fix in the library, [PRESET-UPSTREAM]
+            fix in go-appkit so every adopter advances, [TEMPLATE] wire or
+            document in this repo, [NOT-NOW] deliberate exclusion with reason.
+            The audits routed the large majority of improvements upstream.
+          </p>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+          <p>
+            Generated 2026-11-23 &middot; Each library audited at its checkout
+            HEAD recorded in the per-library report &middot; All scores
+            re-derived from capability inventories; verify commands replayed
+          </p>
+        </footer>
+      </main>
+    </div>
+
+    <!-- Progressive-enhancement scrollspy. Nav still works without JS via anchor links. -->
+    <script>
+      (function () {
+        if (!("IntersectionObserver" in window)) return;
+        var nav = document.querySelector("[data-nav]");
+        if (!nav) return;
+        var links = nav.querySelectorAll('a[href^="#"]');
+        var ids = Array.from(links).map(function (l) {
+          return l.getAttribute("href").slice(1);
+        });
+        var sections = ids
+          .map(function (id) {
+            return document.getElementById(id);
+          })
+          .filter(Boolean);
+        if (!sections.length) return;
+        var observer = new IntersectionObserver(
+          function (entries) {
+            entries.forEach(function (entry) {
+              if (entry.isIntersecting) {
+                links.forEach(function (link) {
+                  link.classList.toggle(
+                    "active",
+                    link.getAttribute("href") === "#" + entry.target.id,
+                  );
+                });
+              }
+            });
+          },
+          { rootMargin: "-80px 0px -60% 0px", threshold: 0 },
+        );
+        sections.forEach(function (s) {
+          observer.observe(s);
+        });
+      })();
+    </script>
+  </body>
+</html>
