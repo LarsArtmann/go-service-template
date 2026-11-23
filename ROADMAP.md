@@ -65,6 +65,10 @@ Raw ideas:
   committed `vendorHash.nix`, if the module's story matures.
 - An adopter smoke script: clone → rename → build → boot → probe, runnable by
   the owner before tagging a template change.
+- Archetype routing signposts: a "which starting point?" box (service on the
+  preset spine vs cqrs-htmx web app vs go-daemon socket daemon) plus one
+  adopter pointer per correctly-absent library, so a team clones the right
+  repo first (TODO_LIST row 25; from the 2026-11-23 library audit).
 
 ### 4. Fleet posture propagation
 
@@ -80,6 +84,14 @@ Raw ideas:
   hand-wired steps.
 - Template versioning: how an adopter learns that the archetype moved (the
   refresh ritual says re-clone, but nothing announces a new commit).
+- A repeating fleet library audit: the 21-report series under
+  `docs/review/libs/` is the first run; upstream-routed findings should land
+  in the owning repos (TODO_LIST row 30) and a later run re-measures. A
+  cross-repo roll-up would show fleet-wide utilization in one place.
+- A preset production-profile switch so the audited maximum (strict
+  security, compression, embedded assets, critical health checks) is one env
+  flip for every adopter instead of N passthrough fields (raw idea,
+  preset-owned; TODO_LIST row 24 is the near-term slice).
 
 ### 5. Observability defaults for adopters
 
@@ -97,7 +109,7 @@ Raw ideas:
 
 ## Open questions (owner decisions)
 
-Two fleet-level calls are blocked on the owner, not on work. They are tracked
+Five fleet-level calls are blocked on the owner, not on work. They are tracked
 as rows so they cannot disappear, but the question belongs here:
 
 1. **Image publishing:** CI pushes to `ghcr.io/larsartmann/<name>` (needs
@@ -107,6 +119,18 @@ as rows so they cannot disappear, but the question belongs here:
    mirrored by the flake tarball pin) or adopt BuildFlow's major.minor-only
    rule? Two fleet standards disagree here. Decides
    [TODO_LIST.md](TODO_LIST.md) row 6.
+3. **Commit policy under Crush:** the project AGENTS.md says "commit coherent
+   work yourself before the daemon tick"; Crush's harness rule and the
+   status-report skill say never commit manually, the auto-commit daemon picks
+   it up. Three sessions have now blurred attribution in this repo (last:
+   the 2026-11-23 library audit, 22 files in 17 heuristic commits). Which
+   rule wins? Decides whether the AGENTS.md gotcha is rewritten.
+4. **Upstream intake form:** the library audit's upstream findings (issues vs
+   TODO_LIST rows in each library repo vs direct fixes). Decides
+   [TODO_LIST.md](TODO_LIST.md) row 30.
+5. **Fleet rollout of the library audit:** run the same 21-library audit on
+   other repos (same `docs/review/libs/` convention), and should the procedure
+   become a standing skill? If yes, which repos first?
 
 ## Non-goals
 

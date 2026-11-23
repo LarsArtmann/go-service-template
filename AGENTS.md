@@ -51,12 +51,23 @@ event-sourcing weight (verified); five libs are correctly ABSENT
 cqrs-htmx composes ON TOP of the preset via `setup.RunWithAppkit`, never
 inside a service); the biggest "not to the max" items are UPSTREAM, not
 template-local: preset `APPKIT_SECURITY=strict` via env silently degrades
-(appkit bug), `NoDashboard` panics on the current go-health resolution
-(floor skew), default WriteTimeout cuts all SSE at 30s (incl. the dashboard
-spine), the dashboard serves CDN assets while embedded ones sit unserved,
-and error-family BSD exit codes never reach os.Exit. Re-review trigger: the
-next appkit preset train or any preset/dashboard release landing the routed
-fixes (full findings + routing in `docs/review/libs/index.html`).
+(code-traced 2026-11-23, NOT yet runtime-reproduced or filed), `NoDashboard`
+panics at boot (reproduced twice; root cause: the preset never stamps the
+probe, the fix is `health.WithVersion(cfg.Version)` at preset/preset.go:109),
+default WriteTimeout cuts all SSE at 30s (incl. the dashboard spine), the
+dashboard serves CDN assets while embedded ones sit unserved, and
+error-family BSD exit codes never reach os.Exit. All are routed as TODO_LIST
+rows 22-30, none filed upstream yet. Re-review trigger: the next appkit
+preset train or any preset/dashboard release landing the routed fixes (full
+findings + routing in `docs/review/libs/index.html`; the index's finding-2
+Fix callout is wrong, TODO_LIST row 26).
+
+**Re-running the audit:** follow the library-deep-dive skill's Fleet Runs
+runbook (it sits below the single-library phases; read the skill to the end):
+cap concurrency at 3, dispatch sequentially and resume failures in place, a
+QC subagent per report, a mechanical citation sweep, and the orchestrator
+re-derives every stamped number. The 2026-11-23 run skipped that section and
+paid for it (`docs/status/2026-11-23_20-13_fleet-library-utilization-audit-status.md`).
 
 ## Build & verify
 
