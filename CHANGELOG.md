@@ -6,6 +6,15 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- 2026-11-24 (Pareto plan, T-23.1-T-23.3): TODO row 23 (upstream preset
+  defects) is closed. Both defects re-verified against appkit origin/master
+  `5897476` (`preset/` identical to the audit's HEAD), then reproduced at
+  runtime: `APPKIT_SECURITY=strict` via env boots the standard profile
+  (cross-origin request: 200 degraded vs 403 `ORIGIN_REJECTED` on the config
+  path), and `NoDashboard: true` panics at `preset.New` when go-health
+  >= v0.9 rides the graph (tuple-traced: v0.8.1 has no Version route; the
+  template gets v0.10.0 from go-health-dashboard v0.13.3). Filed upstream as
+  go-appkit issues #84 and #85 with the full evidence tables.
 - 2026-11-24 (Pareto plan, T-31.1-T-31.3): TODO row 31 (formatter gate) is
   closed. One atomic `dprint fmt` pass over the 21 `docs/review/libs/*.md`
   audits, the 2026-11-23 fleet status report, and `AGENTS.md` (813 lines

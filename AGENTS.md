@@ -57,7 +57,7 @@ probe, the fix is `health.WithVersion(cfg.Version)` at preset/preset.go:109),
 default WriteTimeout cuts all SSE at 30s (incl. the dashboard spine), the
 dashboard serves CDN assets while embedded ones sit unserved, and
 error-family BSD exit codes never reach os.Exit. All are routed as TODO_LIST
-rows 22-30, none filed upstream yet. Re-review trigger: the next appkit
+rows 22-30; rows 23 filed upstream 2026-11-24 as go-appkit issues [#84](https://github.com/LarsArtmann/go-appkit/issues/84) (env-strict degradation, runtime-reproduced) and [#85](https://github.com/LarsArtmann/go-appkit/issues/85) (NoDashboard panic, reproduced + tuple-traced to go-health v0.9+). Remaining rows 24 (preset option passthroughs) wait on those fixes. Re-review trigger: the next appkit
 preset train or any preset/dashboard release landing the routed fixes (full
 findings + routing in `docs/review/libs/index.html`; the index's finding-2
 Fix callout is wrong, TODO_LIST row 26).
