@@ -6,6 +6,16 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- 2026-11-24 (Pareto plan, T-31.1-T-31.3): TODO row 31 (formatter gate) is
+  closed. One atomic `dprint fmt` pass over the 21 `docs/review/libs/*.md`
+  audits, the 2026-11-23 fleet status report, and `AGENTS.md` (813 lines
+  reflowed, zero alphanumeric content drift, verified per file against HEAD).
+  The two reflow artifacts were repaired for the annotate gate: `go-sse.md`
+  now quotes the go-get command inside the NOT-NOW tag (nested backticks
+  never rendered as code and were unformattable), and `go-appkit.md` keeps
+  the literal Go struct tag with the gate's `format:allow` opt-out. The full
+  `buildflow --build-mode full` gate is green again (63 steps, 0 failed) —
+  the first time since the audit corpus landed.
 - 2026-11-24 (Pareto plan, T-4.1): TODO row 4 (CI execution evidence) is
   closed. Push `ebca772` ran as CI run 45375102476 with all three jobs green
   (build-vet-test, lint, nix-image); two earlier runs on 2026-11-23
