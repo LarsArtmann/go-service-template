@@ -29,7 +29,10 @@ DOCS=(README.md AGENTS.md CONTRIBUTING.md FEATURES.md TODO_LIST.md ROADMAP.md CH
 
 failures=0
 note() { printf '%s\n' "$*"; }
-bail() { printf 'FAIL: %s\n' "$*" >&2; failures=$((failures + 1)); }
+bail() {
+	printf 'FAIL: %s\n' "$*" >&2
+	failures=$((failures + 1))
+}
 
 run_safe() { # cmd... — executed under timeout; nonzero exit = failure
 	local cmd="$*"
@@ -72,6 +75,7 @@ if [ "${1:-}" = "--self-test" ]; then
 		"nix build .#app-image" \
 		"docs-gates run ." \
 		"docker load" \
+		"scripts/image-smoke.sh" \
 		"systemd-run"; do
 		classified INVENTORY "$cmd"
 	done
@@ -99,12 +103,13 @@ command -v buildflow >/dev/null 2>&1 || bail "MUTATING binary missing: buildflow
 
 # --- NEEDS_RUNTIME: classified skips, each with its documented reason -------
 if command -v docker >/dev/null 2>&1 || command -v podman >/dev/null 2>&1; then
-	note "note  container runtime present; image boot remains a separate task (TODO row 1)"
+	note "note  container runtime present; image boot runs via scripts/image-smoke.sh, not here"
 else
 	note "skip  docker load / docker run: no container runtime on this host (documented: README, AGENTS)"
 fi
 classified NEEDS_RUNTIME "docker load"
 classified NEEDS_RUNTIME "docker run --rm -p 8080:8080"
+classified NEEDS_RUNTIME "scripts/image-smoke.sh"
 classified NEEDS_RUNTIME "nix run .#app-image-push"
 classified NEEDS_RUNTIME "systemd-run"
 

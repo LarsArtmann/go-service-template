@@ -106,12 +106,15 @@ No daemon ever runs on the dev machine. The proven pipeline:
    `~/.local/share/containers`.
 2. **Load:** the n2c-patched skopeo (the one `copy-to-docker-daemon` already
    wires, `skopeo-nix2container` in nlewo/nix2container) has the `nix:`
-   transport; nixpkgs' stock skopeo does NOT (`unknown transport "nix"`).
-   `skopeo --insecure-policy copy nix:$(readlink -f result)
-   docker-archive:/tmp/app-image.tar:app:latest` → `podman load -i`.
-3. **Probe:** run detached on a free port, endpoint matrix + `/version` = the
-   exact git rev, `/nope` 404, `podman stop -t 20` (SIGTERM), logs show all
-   five drain phases.
+   transport; nixpkgs' stock skopeo does NOT (`unknown transport "nix"`), so
+   `apps.app-image-load` alone is broken on this pin (fleet finding).
+   `checks.<system>.image-smoke-archive` packages the image into an OCI
+   layout in-sandbox (it extracts that same skopeo from the copy app and
+   must `export CONTAINERS_IMAGE_TMP=` somewhere writable — skopeo stages
+   copies in `/var/tmp`, absent in the build sandbox).
+3. **Probe:** `bash scripts/image-smoke.sh result/layout` — runs detached on
+   a free port, endpoint matrix + `/version` = the exact git rev, `/nope`
+   404, `podman stop -t 20` (SIGTERM), logs show all five drain phases.
 
 `scripts/image-smoke.sh` wraps steps 2-3; CI runs it with docker. Evidence
 2026-11-24: all endpoints 200, version `a406d8f…` (rev-identical), 404, five

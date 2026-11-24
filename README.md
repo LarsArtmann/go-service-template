@@ -96,9 +96,10 @@ The OCI image (built from the flake, no Dockerfile):
 ```bash
 nix build .#app-image                             # the image (packages shorthand)
 nix build .#checks.<system>.container-structure   # posture gate: user, ports, entrypoint
-nix run .#app-image-load | docker load            # or podman load
-docker images                                     # tag = the store-path content hash
-docker run --rm -p 8080:8080 <tag-from-above>
+nix build .#checks.<system>.image-smoke-archive   # daemonless: OCI layout at result/layout
+bash scripts/image-smoke.sh result/layout         # boot + endpoint matrix + SIGTERM drain
+skopeo copy oci:result/layout docker-archive:/tmp/app.tar && docker load -i /tmp/app.tar
+docker run --rm -p 8080:8080 app:latest           # manual boot once loaded
 curl -s localhost:8080/version                    # the git rev, stamped via flake ldflags
 ```
 

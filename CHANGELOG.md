@@ -6,6 +6,17 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- 2026-11-24 (Pareto plan, T-1.1-T-1.3): TODO row 1 (image boot-smoke) is
+  closed. The image now boots: rootless podman (nixpkgs) loads it via the
+  n2c-patched skopeo's `nix:` transport (stock nixpkgs skopeo rejects that
+  transport, so `apps.app-image-load` alone is broken on this pin — fleet
+  finding). `checks.<system>.image-smoke-archive` packages the image into an
+  OCI layout daemonlessly in the build sandbox and asserts posture and the
+  rev-identical version stamp; `scripts/image-smoke.sh` boots it, probes the
+  endpoint matrix, asserts `/version` equals the git rev (drift fails
+  loudly), SIGTERMs and greps the five drain phases. CI runs the same script
+  against docker. Evidence 2026-11-24: full matrix 200, 404 path, five
+  phases in `podman logs`; stamp drift proven to fail.
 - 2026-11-24 (Pareto plan, T-17.1-T-17.2): TODO row 17 (mechanized dogfood
   probe) is closed. `scripts/probe.sh` boots a binary on a free port, gates
   the endpoint matrix behind a version-stamp assertion (mismatch fails:

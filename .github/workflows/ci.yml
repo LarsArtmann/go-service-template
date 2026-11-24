@@ -118,6 +118,16 @@ jobs:
         # is x86_64-linux.
         run: nix build .#checks.x86_64-linux.container-structure
 
+      - name: Package the image (OCI layout, daemonless)
+        run: nix build .#checks.x86_64-linux.image-smoke-archive
+
+      - name: Boot, probe and drain the image
+        # The runner has a real docker daemon; the smoke script loads the
+        # layout, boots the container, probes the endpoint matrix, asserts
+        # the /version stamp equals the checkout rev, SIGTERMs and greps the
+        # five drain phases from the logs.
+        run: bash scripts/image-smoke.sh result/layout "$GITHUB_SHA"
+
   # Darwin without a macOS runner: evaluate every output for every system
   # (aarch64-darwin included) on Linux. Evaluation catches the darwin-only
   # breakage (wrong platform attrs, eval errors) that the x86_64-linux
