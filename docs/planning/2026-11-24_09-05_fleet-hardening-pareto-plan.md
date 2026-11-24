@@ -38,12 +38,14 @@ most valuable ones.
 
 ### The 1% that delivers 51%
 
-**T-4.1: push `master` and watch CI.** Twenty-five minutes, one push. The repo
-carries three workflow jobs whose commands have _never executed in CI_ — one of
-them (`nix-image`) contained an attribute path that does not resolve until the
-2026-11-22 audit caught it. Everything else in this plan is a local proof until
-CI reproduces it on a clean runner. Nothing else buys as much confidence per
-minute.
+**T-4.1: push `master` and watch CI.** Twenty-five minutes, one push. Status
+2026-11-24: delivered. Push `ebca772` ran as CI run 45375102476 and all three
+jobs (build-vet-test, lint, nix-image) concluded success; T-4.2 had no
+fallout to fix. An earlier draft of this paragraph claimed the three jobs had
+never executed; that was wrong twice over: the `nix-image` attribute path was
+fixed on 2026-11-22, and runs 45099511327 and 45121169253 had already
+exercised all three jobs green on 2026-11-23. TODO row 4 is closed
+accordingly (see CHANGELOG).
 
 ### The 4% that delivers 64%
 

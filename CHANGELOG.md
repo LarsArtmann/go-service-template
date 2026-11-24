@@ -6,6 +6,13 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- 2026-11-24 (Pareto plan, T-4.1): TODO row 4 (CI execution evidence) is
+  closed. Push `ebca772` ran as CI run 45375102476 with all three jobs green
+  (build-vet-test, lint, nix-image); two earlier runs on 2026-11-23
+  (45099511327, 45121169253) had already exercised the same three jobs after
+  the 2026-11-22 `checks.<system>.container-structure` fix, so the row's
+  "zero runs observed" evidence was stale when written. The Pareto plan's
+  "never executed" sentence was corrected in the same pass.
 - 2026-11-22 (docs-health audit): `buildflow --build-mode full` was run for
   the first time (the dev lane had masked it). Final runs report 0 failed
   (60 steps on the first run, 62 once optional steps joined; the count moves,
