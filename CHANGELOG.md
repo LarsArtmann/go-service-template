@@ -6,6 +6,15 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- 2026-11-24 (Pareto plan, T-17.1-T-17.2): TODO row 17 (mechanized dogfood
+  probe) is closed. `scripts/probe.sh` boots a binary on a free port, gates
+  the endpoint matrix behind a version-stamp assertion (mismatch fails:
+  proven against a stale flake binary and a wrong expected rev), walks the
+  healthz/readyz/startupz/health/api/status/root/404 matrix, drains on
+  SIGTERM asserting the five phases, and adds the two historical failure
+  modes as edge cases: a squatted port must boot-fail with the classified
+  `[Infrastructure:server.listen_failed]`, and an in-flight request must
+  produce `drain_wait`. Documented in CONTRIBUTING as the probe ritual.
 - 2026-11-24 (Pareto plan, T-2.1-T-2.2): TODO row 2 (dogfood of the rename
   flow) is closed. A clean `git archive` copy was renamed exactly per the
   README: zero old module-path matches after the rewrite, `go mod tidy`,
