@@ -80,6 +80,7 @@ nix build .#checks.<system>.container-structure  # posture gate (per-system attr
 
 # raw fallbacks (what the gate wraps):
 go build ./...
+go vet ./...
 go test ./... -race -count=1
 golangci-lint run ./...        # config copied from the appkit fleet standard
 nix build                      # vendorHash.nix + goTarballHash.nix are filled; a floor bump prints the new hash

@@ -24,6 +24,27 @@
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [ inputs.go-nix-helpers.flakeModules.go-standard ];
 
+      # The docs-command smoke check: every command the living docs name must
+      # run clean or carry an explicit skip reason (scripts/docs-command-smoke.sh).
+      # In the sandbox we verify the cheap half — script syntax and that the
+      # command inventory still matches the living docs; the executable half
+      # runs locally and in CI where the network and toolchain exist.
+      perSystem =
+      { pkgs, ... }:
+      {
+        checks.docs-command-smoke =
+        pkgs.runCommand "docs-command-smoke"
+          {
+          nativeBuildInputs = [ pkgs.bash ];
+          }
+          ''
+          cp ${./README.md} ${./AGENTS.md} ${./CONTRIBUTING.md} ${./FEATURES.md} ${./TODO_LIST.md} ${./ROADMAP.md} ${./CHANGELOG.md} .
+          mkdir docs && cp ${./docs/DOMAIN_LANGUAGE.md} docs/
+          DOCS_DIR=. bash ${./scripts/docs-command-smoke.sh} --self-test
+          touch $out
+          '';
+      };
+
       go-standard = {
         pname = "app";
         description = "the <name> service";
