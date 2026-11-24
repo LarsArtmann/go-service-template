@@ -25,3 +25,16 @@ must re-run the dogfood probe: fresh clone of the commit, full rename flow
 per the README, build, boot, `/healthz` + `/api/status` + `/version` probe,
 SIGTERM graceful drain. The stamp block in AGENTS.md records the last
 verified posture — preset/core-touching trains bump it.
+
+The probe is a script now; run it instead of hand-walking the matrix:
+
+```bash
+go build -o app ./cmd/app
+scripts/probe.sh ./app                    # endpoint matrix + drain + edge cases
+PROBE_EXPECT_VERSION="{\"version\":\"$(git rev-parse HEAD)\"}" \
+  nix build . && scripts/probe.sh result/bin/app   # flake binary: exact stamp
+scripts/probe.sh --edge result/bin/app    # just bind-failure + drain-under-load
+```
+
+A `/version` stamp mismatch fails the probe - that is the point: a binary
+whose stamp does not name the commit under test is not evidence.
