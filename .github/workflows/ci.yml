@@ -27,6 +27,44 @@ jobs:
       - name: Test
         run: go test ./... -race -count=1
 
+      # internal/events is behind the `events` build tag, so the default
+      # build silently skips it. Compile and vet it explicitly or a break
+      # there ships unnoticed (the tag gate keeps the default binary lean;
+      # this keeps the tagged build honest).
+      - name: Build (events tag)
+        run: go build -tags events ./...
+
+      - name: Vet (events tag)
+        run: go vet -tags events ./...
+
+      # views/*_templ.go are committed so plain `go build` works without a
+      # templ install. Regenerate and compare: a .templ edit without a
+      # regen (or a generator-version move) fails here. gofmt mirrors the
+      # treefmt pass the committed files went through, so only real drift
+      # trips the diff.
+      - name: Templ regen drift check
+        run: |
+          go install github.com/a-h/templ/cmd/templ@v0.3.1123
+          templ generate
+          gofmt -w views/
+          git diff --exit-code views/
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      # Full history (not diff-only): this is a template — its history is
+      # every adopter's history, and the repo is young enough that a full
+      # scan costs milliseconds (63 commits, ~70 ms locally on 2026-11-24).
+      - name: Install gitleaks (pinned)
+        run: go install github.com/gitleaks/gitleaks/v8@v8.30.1
+
+      - name: Scan git history for secrets
+        run: gitleaks git . -v --redact
+
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -37,7 +75,15 @@ jobs:
           go-version-file: go.mod
 
       # go install (the fleet convention) — golangci-lint-action v6 cannot
-      # run the v2 binary.
+      # run the v2 binary. The compiled binary depends only on the pinned
+      # version, so one cache key serves it; setup-go already caches the
+      # module downloads the lint run needs.
+      - name: Cache golangci-lint binary
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/go/bin/golangci-lint
+          key: golangci-lint-v2.15.0
+
       - name: Install golangci-lint (pinned)
         run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
 
@@ -63,3 +109,19 @@ jobs:
         # (which resolves packages/apps only) does not work here. The runner
         # is x86_64-linux.
         run: nix build .#checks.x86_64-linux.container-structure
+
+  # Darwin without a macOS runner: evaluate every output for every system
+  # (aarch64-darwin included) on Linux. Evaluation catches the darwin-only
+  # breakage (wrong platform attrs, eval errors) that the x86_64-linux
+  # build job cannot see; builds stay Linux-only by design. ~0.3 s locally.
+  nix-eval-all-systems:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
+
+      - uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # v15
+
+      - name: Evaluate flake outputs for all systems
+        run: nix flake show --all-systems --json > /dev/null
