@@ -25,7 +25,8 @@ Then rename (the only mechanical step). Every place the template name lives:
    That set is `go.mod`, `cmd/app/main.go`, `internal/app/service.go`,
    `internal/api/routes_test.go`, `flake.nix` (the `ldflags -X` path) and
    this README.
-2. **Names** — the `internal/app` `Name`/`Short` consts, the
+2. **Names** — the `internal/app` `Name`/`Short` consts, the `cmd/app`
+   doc comment (it carries a `<name>` placeholder too), the
    `systemd/app.service` `Description` and `ExecStart`, the `flake.nix`
    `pname` and `description` fields, and the `<name>` placeholders in
    `flake.nix` and `systemd/app.service`.

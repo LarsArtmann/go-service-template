@@ -6,6 +6,15 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- 2026-11-24 (Pareto plan, T-2.1-T-2.2): TODO row 2 (dogfood of the rename
+  flow) is closed. A clean `git archive` copy was renamed exactly per the
+  README: zero old module-path matches after the rewrite, `go mod tidy`,
+  race suite green under `github.com/you/your-service`, boot probe green
+  (7x200 + 404 + graceful drain), and the OCI image builds from the renamed
+  flake (`packages.your-service-image`; the attr follows `pname`, and
+  vendorHash is unchanged because the module graph is). One rename-docs gap
+  fixed: the `cmd/app` doc comment carries a `<name>` placeholder the
+  README's step-2 list omitted.
 - 2026-11-24 (Pareto plan, T-16.1-T-16.2): TODO row 16 (docs-command smoke
   check) is closed. Every command the living docs name is inventoried
   (T-16.1) and classified: ten runnable commands execute under timeout in
