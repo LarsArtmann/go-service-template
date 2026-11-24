@@ -94,7 +94,7 @@ rg -n 'go-sse' /home/lars/projects/go-appkit/realtime/handler.go /home/lars/proj
 rg -n 'SSE:|routes.SSE' /home/lars/projects/go-health-dashboard/routes.go /home/lars/projects/go-health-dashboard/handlers.go  # /health/sse mount
 rg -n 'sse\.' /home/lars/projects/go-health-dashboard/pusher.go | head -10              # Broadcaster/OnDrop/NewStream/Heartbeat
 rg -n 'ssetest' /home/lars/projects/go-appkit/preset/realtime_test.go                   # :12,:69-70 upstream test usage
-rg -rn 'go-sse' /home/lars/projects/go-appkit/cqrs --glob '*.go' || echo 'no matches (cqrs SSE is go-cqrs-lite, not go-sse)'
+rg -n 'go-sse' /home/lars/projects/go-appkit/cqrs --glob '*.go' || echo 'no matches (cqrs SSE is go-cqrs-lite, not go-sse)'
 ```
 
 ## Submodule matrix

@@ -75,10 +75,10 @@ Current, and not the template's to manage. Template pins v0.38.7 for all 12 grap
 rg -n 'go-output' /home/lars/projects/go-service-template/go.mod        # lines 105-116
 
 # 2. Template source: zero go-output usage
-rg -rn 'go-output' /home/lars/projects/go-service-template --glob '*.go'  # no matches
+rg -n 'go-output' /home/lars/projects/go-service-template --glob '*.go'  # no matches
 
 # 3. Preset: zero go-output involvement
-rg -rn 'larsartmann/go-output' /home/lars/projects/go-appkit            # no matches
+rg -n 'larsartmann/go-output' /home/lars/projects/go-appkit            # no matches
 
 # 4. cmdguard: root-only imports, file:line
 rg -n 'larsartmann/go-output' /home/lars/projects/cmdguard/pkg --glob '*.go' | grep -v _test
@@ -100,7 +100,7 @@ git -C /home/lars/projects/go-output tag -l | rg '0\.38\.7$' | sort       # 16 e
 find /home/lars/projects/go-output -maxdepth 2 -name go.mod | wc -l       # 18
 
 # 9. Dashboard / templ-components: no go-output
-rg -rn 'go-output' /home/lars/projects/go-health-dashboard /home/lars/projects/templ-components --glob '*.go'  # no matches
+rg -n 'go-output' /home/lars/projects/go-health-dashboard /home/lars/projects/templ-components --glob '*.go'  # no matches
 ```
 
 ## Submodule matrix

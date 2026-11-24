@@ -16,7 +16,7 @@ Not used at all, and that is correct. The name invites the wrong mental model: d
 ## What the template uses today
 
 - ABSENT: `github.com/LarsArtmann/go-daemon` appears nowhere: `rg -n 'go-daemon' go.mod go.sum` exits 1 (not direct, not indirect, not graph-only), and no template source file imports it (`rg -n 'go-daemon' /home/lars/projects/go-service-template --glob '!docs/**'` exits 1). This is stronger than GRAPH-ONLY: the module is not even in the graph, so there is no "graph presence without runtime wiring" to discount.
-- ABSENT at the preset layer too: `rg -rn 'go-daemon' /home/lars/projects/go-appkit --glob '*.go'` and a grep over every go.mod under go-appkit both exit 1. Nothing is preset-mediated from this lib.
+- ABSENT at the preset layer too: `rg -n 'go-daemon' /home/lars/projects/go-appkit --glob '*.go'` and a grep over every go.mod under go-appkit both exit 1. Nothing is preset-mediated from this lib.
 - The capabilities go-daemon is known for are, however, all delivered to the template through go-appkit's own parallel implementations (verified, cited so the "already covered" claim is not vibes):
   - sd_notify spine: appkit `systemd.Install` wired by the preset (go-appkit preset/preset.go:101); sends READY post-listen, STOPPING at drain start, watchdog at WatchdogSec/2 (go-appkit systemd/hooks.go:83-133): semantics identical to go-daemon socket.go:283-289 + notify.go. Matches `systemd/app.service` (`Type=notify` + `WatchdogSec=30s`).
   - Container path (PID 1 signals): appkit core `Run` (go-appkit service.go:232) catches SIGINT/SIGTERM and runs the documented drain (service.go:248-257: ready-flip, DrainHooks, drain wait, listener close, ShutdownHooks).
@@ -86,7 +86,7 @@ git -C /home/lars/projects/go-daemon log --oneline v0.4.0..HEAD | wc -l # 39
 # Absence from the template (all must exit 1 / no matches)
 rg -n 'go-daemon' /home/lars/projects/go-service-template/go.mod /home/lars/projects/go-service-template/go.sum
 rg -n 'go-daemon' /home/lars/projects/go-service-template --glob '!docs/**'
-rg -rn 'go-daemon' /home/lars/projects/go-appkit --glob '*.go'
+rg -n 'go-daemon' /home/lars/projects/go-appkit --glob '*.go'
 
 # Preset owns the deployment spine
 rg -n 'systemd.Install' /home/lars/projects/go-appkit/preset/preset.go            # :101
