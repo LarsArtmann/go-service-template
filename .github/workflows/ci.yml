@@ -62,8 +62,13 @@ jobs:
       # Full history (not diff-only): this is a template — its history is
       # every adopter's history, and the repo is young enough that a full
       # scan costs milliseconds (63 commits, ~70 ms locally on 2026-11-24).
+      # No setup-go here on purpose: the runner's preinstalled toolchain
+      # compiles gitleaks fine, but nothing puts GOPATH/bin on PATH, so the
+      # binary's directory is exported explicitly.
       - name: Install gitleaks (pinned)
-        run: go install github.com/zricethezav/gitleaks/v8@v8.30.1
+        run: |
+          go install github.com/zricethezav/gitleaks/v8@v8.30.1
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: Scan git history for secrets
         run: gitleaks git . -v --redact
