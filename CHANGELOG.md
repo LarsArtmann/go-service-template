@@ -6,6 +6,15 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- 2026-11-24 (Pareto plan, T-16.1-T-16.2): TODO row 16 (docs-command smoke
+  check) is closed. Every command the living docs name is inventoried
+  (T-16.1) and classified: ten runnable commands execute under timeout in
+  `scripts/docs-command-smoke.sh`, four container/registry/systemd commands
+  carry documented skip reasons, mutating commands are proven present but
+  not executed. The inventory half runs sandboxed as
+  `checks.<system>.docs-command-smoke` (flake) and fails when a documented
+  command disappears (proven). `go vet ./...` is now named in AGENTS' raw
+  fallbacks — the smoke check caught it missing.
 - 2026-11-24 (Pareto plan, T-23.1-T-23.3): TODO row 23 (upstream preset
   defects) is closed. Both defects re-verified against appkit origin/master
   `5897476` (`preset/` identical to the audit's HEAD), then reproduced at
