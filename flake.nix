@@ -38,9 +38,20 @@
           nativeBuildInputs = [ pkgs.bash ];
           }
           ''
-          cp ${./README.md} ${./AGENTS.md} ${./CONTRIBUTING.md} ${./FEATURES.md} ${./TODO_LIST.md} ${./ROADMAP.md} ${./CHANGELOG.md} .
-          mkdir docs && cp ${./docs/DOMAIN_LANGUAGE.md} docs/
-          DOCS_DIR=. bash ${./scripts/docs-command-smoke.sh} --self-test
+          # Store-path sources keep their hash-prefixed basenames on a
+          # multi-arg cp, so each copy names its destination explicitly.
+          cp ${./README.md} ./README.md
+          cp ${./AGENTS.md} ./AGENTS.md
+          cp ${./CONTRIBUTING.md} ./CONTRIBUTING.md
+          cp ${./FEATURES.md} ./FEATURES.md
+          cp ${./TODO_LIST.md} ./TODO_LIST.md
+          cp ${./ROADMAP.md} ./ROADMAP.md
+          cp ${./CHANGELOG.md} ./CHANGELOG.md
+          mkdir -p docs && cp ${./docs/DOMAIN_LANGUAGE.md} ./docs/DOMAIN_LANGUAGE.md
+          DOCS_DIR=. bash ${./scripts/docs-command-smoke.sh} --self-test || {
+            echo "docs-command smoke self-test failed"
+            exit 1
+          }
           touch $out
           '';
       };

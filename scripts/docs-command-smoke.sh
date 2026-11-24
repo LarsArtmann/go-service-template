@@ -17,8 +17,12 @@
 set -uo pipefail
 
 # Repo root when run from a checkout; in the nix sandbox ($0 is a bare store
-# path, so the cd fails) the derivation sets DOCS_DIR to its doc copies.
+# path, so dirname/.. is /) keep the derivation cwd instead — the README
+# marker tells the two apart. DOCS_DIR overrides both for callers that stage
+# the docs elsewhere.
+_from="$(pwd)"
 cd "$(dirname "$0")/.." 2>/dev/null || true
+[ -f "README.md" ] || cd "$_from"
 DOCS_DIR="${DOCS_DIR:-.}"
 
 DOCS=(README.md AGENTS.md CONTRIBUTING.md FEATURES.md TODO_LIST.md ROADMAP.md CHANGELOG.md docs/DOMAIN_LANGUAGE.md)
