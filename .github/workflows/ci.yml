@@ -39,15 +39,18 @@ jobs:
 
       # views/*_templ.go are committed so plain `go build` works without a
       # templ install. Regenerate and compare: a .templ edit without a
-      # regen (or a generator-version move) fails here. gofmt mirrors the
-      # treefmt pass the committed files went through, so only real drift
-      # trips the diff.
+      # regen (or a generator move that changes emitted code) fails here.
+      # gofmt mirrors the treefmt pass the committed files went through.
+      # The pin is the newest go-installable CLI (v0.3.1123 ships only as
+      # a binary); the generated version-stamp line is excluded from the
+      # diff so a CLI patch release cannot false-fail the check — emitted
+      # code shape still must match byte for byte.
       - name: Templ regen drift check
         run: |
-          go install github.com/a-h/templ/cmd/templ@v0.3.1123
+          go install github.com/a-h/templ/cmd/templ@v0.3.1118
           templ generate
           gofmt -w views/
-          git diff --exit-code views/
+          git diff --ignore-matching-lines='templ: version:' --exit-code views/
 
   secrets:
     runs-on: ubuntu-latest
