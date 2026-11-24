@@ -1,13 +1,13 @@
 # go-output: utilization review (go-service-template)
 
-| Reviewed | 2026-11-23 |
-|---|---|
-| Library | github.com/larsartmann/go-output (+ submodules) |
-| Version audited | bdd/v0.38.7-11-gc0e177e (c0e177e, 2026-11-23) |
-| Template pin | v0.38.7 root + 11 submodules, ALL indirect via cmdguard/v5 v5.1.0 (see below); bdd/tui/nom/examples/integration/testhelpers absent from graph |
-| Latest tag | v0.38.7 (2026-10-19); tag family bdd/d2/daghtml/delimited/escape/graph/markdown/markup/nom/plantuml/serialization/table/testhelpers/testhelpers-graphtest/tree/tui all at /v0.38.7; examples + integration untagged by design |
-| Adoption score | 14/100 (low), 1 of 7 applicable capabilities leveraged |
-| Verdict | Graph-only by way of cmdguard, and even cmdguard's runtime surface is dormant in this binary: version, doctor, and the hidden describe verb all print with fmt/encoding-json, not go-output, so zero output bytes flow through go-output today; for an HTTP service archetype that is the correct posture, not a defect. |
+| Reviewed        | 2026-11-23                                                                                                                                                                                                                                                                                                               |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Library         | github.com/larsartmann/go-output (+ submodules)                                                                                                                                                                                                                                                                          |
+| Version audited | bdd/v0.38.7-11-gc0e177e (c0e177e, 2026-11-23)                                                                                                                                                                                                                                                                            |
+| Template pin    | v0.38.7 root + 11 submodules, ALL indirect via cmdguard/v5 v5.1.0 (see below); bdd/tui/nom/examples/integration/testhelpers absent from graph                                                                                                                                                                            |
+| Latest tag      | v0.38.7 (2026-10-19); tag family bdd/d2/daghtml/delimited/escape/graph/markdown/markup/nom/plantuml/serialization/table/testhelpers/testhelpers-graphtest/tree/tui all at /v0.38.7; examples + integration untagged by design                                                                                            |
+| Adoption score  | 14/100 (low), 1 of 7 applicable capabilities leveraged                                                                                                                                                                                                                                                                   |
+| Verdict         | Graph-only by way of cmdguard, and even cmdguard's runtime surface is dormant in this binary: version, doctor, and the hidden describe verb all print with fmt/encoding-json, not go-output, so zero output bytes flow through go-output today; for an HTTP service archetype that is the correct posture, not a defect. |
 
 ## Verdict
 
@@ -23,24 +23,24 @@ Not used to the max, and "max" would be the wrong target: an HTTP service archet
 
 ## Capability inventory
 
-| Capability | Status | Evidence | Note |
-|---|---|---|---|
-| Format enum + ParseFormat validation (16 formats, 3 shapes) | Partially used | cmdguard `output.go:15` aliases it; `cli_output.go:55` validates flag input; template surfaces no flag | Type-safe enum is real mediated plumbing; no template-owned surface |
-| Registry plugin architecture (submodule init() self-registration) | Missed opportunity | go-output `render_tabledata.go:29-40`: root "registers no format itself" | In the template binary the registries are EMPTY because no submodule is imported |
-| RenderTable / RenderUnknown unified dispatch | Missed opportunity | cmdguard `output.go:42-58` wires it; no template call site | One call away for every adopter verb; today it would return UnsupportedFormatError for every format |
-| Table model, builders, footers (CQRS Build/Freeze/Render) | Missed opportunity | README quick start; cmdguard examples/taskctl `commands.go:60,160` only | Archetype ships no data-reporting verb by design |
-| `--output` global flag plumbing | Missed opportunity | cmdguard `cli_output.go:27-41`; requires `WithOutputFormat` (`cli_options.go:276-280`), template omits it (`main.go:51-52`) | Flag help would list zero formats in a root-only binary (empty registry), see Risks |
-| Machine-readable JSON error envelopes | Missed opportunity | cmdguard `cli_errors_json.go:102-124`, gated on outputFormat != "" | Envelope itself is hand-rolled encoding/json/v2 (`cli_errors_json.go:92-94`); go-output contributes only the enum gate |
-| Typed error system (sentinels, errors.AsType, Allowed fields; CHANGELOG 0.36.0) | Partially used | cmdguard `output.go:44,53` maps `*output.UnsupportedFormatError` to its own sentinels | Mediated and correct; never triggered by template paths |
-| RenderOptions / ColorMode / TTY + NO_COLOR/CI detection | Not applicable | `render_tabledata.go:11-24`, `envdetect.go` | No template-owned terminal rendering exists to colorize; doctor's ✓/✗ styling is cmdguard-internal fmt |
-| Terminal tables + text formats (table, markdown, delimited, markup) | Not applicable | Modules in graph (`go.mod:108,111-112,114-116`), never imported | Adopters adding verbs get these via one import; default archetype emits no tabular CLI data |
-| Diagram formats (d2, graph, plantuml, daghtml) | Not applicable | Modules in graph (`go.mod:106,110,113`), never imported | Service binary emits no diagrams; archetype docs tooling (docs-gates, buildflow) is separate infrastructure |
-| NOM real-time progress visualization (nom) | Not applicable | Absent from graph | Wrong shape for a request-serving process; the fleet consumer class is build/workflow tooling (buildflow; ROADMAP.md defers NOM API decisions to BuildFlow integration) |
-| Bubble Tea TUI (tui) | Not applicable | Absent from graph | Interactive terminal UI: weight plus wrong archetype for a daemon |
-| Streaming renderers (StreamingHTMLRenderer, O(1) NOM counts) | Not applicable | README "Streaming Renderer"; no large-dataset CLI emission exists | HTTP responses stream via net/http/httpx, a consumer-owned path (ROADMAP non-goal: network sinks) |
-| Escape helpers (escape) | Not applicable | Module in graph (`go.mod:109`), used only inside renderers | Template renders no external data to a terminal or diagram |
-| Testing utilities (bdd, testhelpers) | Not applicable | Absent from graph | Golden-output helpers for renderer development; the template's one handler test (`routes_test.go`) has no output to golden-test |
-| Branded IDs (phantom types) | Not applicable | README "Branded IDs" | Graph/node identity concern; a service archetype has none (IDs are go-branded-id's domain, a separate fleet lib) |
+| Capability                                                                      | Status             | Evidence                                                                                                                    | Note                                                                                                                                                                    |
+| ------------------------------------------------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Format enum + ParseFormat validation (16 formats, 3 shapes)                     | Partially used     | cmdguard `output.go:15` aliases it; `cli_output.go:55` validates flag input; template surfaces no flag                      | Type-safe enum is real mediated plumbing; no template-owned surface                                                                                                     |
+| Registry plugin architecture (submodule init() self-registration)               | Missed opportunity | go-output `render_tabledata.go:29-40`: root "registers no format itself"                                                    | In the template binary the registries are EMPTY because no submodule is imported                                                                                        |
+| RenderTable / RenderUnknown unified dispatch                                    | Missed opportunity | cmdguard `output.go:42-58` wires it; no template call site                                                                  | One call away for every adopter verb; today it would return UnsupportedFormatError for every format                                                                     |
+| Table model, builders, footers (CQRS Build/Freeze/Render)                       | Missed opportunity | README quick start; cmdguard examples/taskctl `commands.go:60,160` only                                                     | Archetype ships no data-reporting verb by design                                                                                                                        |
+| `--output` global flag plumbing                                                 | Missed opportunity | cmdguard `cli_output.go:27-41`; requires `WithOutputFormat` (`cli_options.go:276-280`), template omits it (`main.go:51-52`) | Flag help would list zero formats in a root-only binary (empty registry), see Risks                                                                                     |
+| Machine-readable JSON error envelopes                                           | Missed opportunity | cmdguard `cli_errors_json.go:102-124`, gated on outputFormat != ""                                                          | Envelope itself is hand-rolled encoding/json/v2 (`cli_errors_json.go:92-94`); go-output contributes only the enum gate                                                  |
+| Typed error system (sentinels, errors.AsType, Allowed fields; CHANGELOG 0.36.0) | Partially used     | cmdguard `output.go:44,53` maps `*output.UnsupportedFormatError` to its own sentinels                                       | Mediated and correct; never triggered by template paths                                                                                                                 |
+| RenderOptions / ColorMode / TTY + NO_COLOR/CI detection                         | Not applicable     | `render_tabledata.go:11-24`, `envdetect.go`                                                                                 | No template-owned terminal rendering exists to colorize; doctor's ✓/✗ styling is cmdguard-internal fmt                                                                  |
+| Terminal tables + text formats (table, markdown, delimited, markup)             | Not applicable     | Modules in graph (`go.mod:108,111-112,114-116`), never imported                                                             | Adopters adding verbs get these via one import; default archetype emits no tabular CLI data                                                                             |
+| Diagram formats (d2, graph, plantuml, daghtml)                                  | Not applicable     | Modules in graph (`go.mod:106,110,113`), never imported                                                                     | Service binary emits no diagrams; archetype docs tooling (docs-gates, buildflow) is separate infrastructure                                                             |
+| NOM real-time progress visualization (nom)                                      | Not applicable     | Absent from graph                                                                                                           | Wrong shape for a request-serving process; the fleet consumer class is build/workflow tooling (buildflow; ROADMAP.md defers NOM API decisions to BuildFlow integration) |
+| Bubble Tea TUI (tui)                                                            | Not applicable     | Absent from graph                                                                                                           | Interactive terminal UI: weight plus wrong archetype for a daemon                                                                                                       |
+| Streaming renderers (StreamingHTMLRenderer, O(1) NOM counts)                    | Not applicable     | README "Streaming Renderer"; no large-dataset CLI emission exists                                                           | HTTP responses stream via net/http/httpx, a consumer-owned path (ROADMAP non-goal: network sinks)                                                                       |
+| Escape helpers (escape)                                                         | Not applicable     | Module in graph (`go.mod:109`), used only inside renderers                                                                  | Template renders no external data to a terminal or diagram                                                                                                              |
+| Testing utilities (bdd, testhelpers)                                            | Not applicable     | Absent from graph                                                                                                           | Golden-output helpers for renderer development; the template's one handler test (`routes_test.go`) has no output to golden-test                                         |
+| Branded IDs (phantom types)                                                     | Not applicable     | README "Branded IDs"                                                                                                        | Graph/node identity concern; a service archetype has none (IDs are go-branded-id's domain, a separate fleet lib)                                                        |
 
 Reconciliation: N = 16 rows, Not-applicable = 9, A = 7. Scored rows: 2 Partially used (2 x 0.5 = 1.0), 5 Missed opportunity (0). Score = round(100 x 1.0 / 7) = 14. The low number is the honest floor for this archetype: the five Missed rows are all one flag or one call away inside cmdguard, and enabling them for `serve` would add surface the archetype deliberately does not want.
 
@@ -107,28 +107,28 @@ rg -rn 'go-output' /home/lars/projects/go-health-dashboard /home/lars/projects/t
 
 Root + rendering submodules (in template graph, GRAPH-ONLY):
 
-| Module path | In template graph | How used | Latest tag | Note |
-|---|---|---|---|---|
-| github.com/larsartmann/go-output | Yes (indirect via cmdguard) | Linked into every binary via cmdguard's 5 import sites; zero render calls execute | v0.38.7 | Format enum alias + registry host; registers no formats itself |
-| …/go-output/d2 | Yes (go.mod:106) | Never imported | d2/v0.38.7 | D2 diagrams, SQL tables, 20 shapes |
-| …/go-output/daghtml | Yes (go.mod:107) | Never imported | daghtml/v0.38.7 | Interactive SVG DAG HTML; newest renderer (edge labels in v0.38.6) |
-| …/go-output/delimited | Yes (go.mod:108) | Never imported | delimited/v0.38.7 | CSV/TSV streaming writers |
-| …/go-output/escape | Yes (go.mod:109) | Never imported | escape/v0.38.7 | Per-format escaping, used inside sibling renderers |
-| …/go-output/graph | Yes (go.mod:110) | Never imported | graph/v0.38.7 | DOT + Mermaid renderers |
-| …/go-output/markdown | Yes (go.mod:111) | Never imported | markdown/v0.38.7 | Markdown tables |
-| …/go-output/markup | Yes (go.mod:112) | Never imported | markup/v0.38.7 | XML/HTML/AsciiDoc + streaming HTML |
-| …/go-output/plantuml | Yes (go.mod:113) | Never imported | plantuml/v0.38.7 | PlantUML component diagrams |
-| …/go-output/serialization | Yes (go.mod:114) | Never imported | serialization/v0.38.7 | JSON/YAML/TOML/JSONL; the formats cmdguard's story implicitly needs |
-| …/go-output/table | Yes (go.mod:115) | Never imported | table/v0.38.7 | Lipgloss terminal tables; cmdguard's default format lives here, unimported |
-| …/go-output/tree | Yes (go.mod:116) | Never imported | tree/v0.38.7 | ASCII box-drawing trees |
+| Module path                      | In template graph           | How used                                                                          | Latest tag            | Note                                                                       |
+| -------------------------------- | --------------------------- | --------------------------------------------------------------------------------- | --------------------- | -------------------------------------------------------------------------- |
+| github.com/larsartmann/go-output | Yes (indirect via cmdguard) | Linked into every binary via cmdguard's 5 import sites; zero render calls execute | v0.38.7               | Format enum alias + registry host; registers no formats itself             |
+| …/go-output/d2                   | Yes (go.mod:106)            | Never imported                                                                    | d2/v0.38.7            | D2 diagrams, SQL tables, 20 shapes                                         |
+| …/go-output/daghtml              | Yes (go.mod:107)            | Never imported                                                                    | daghtml/v0.38.7       | Interactive SVG DAG HTML; newest renderer (edge labels in v0.38.6)         |
+| …/go-output/delimited            | Yes (go.mod:108)            | Never imported                                                                    | delimited/v0.38.7     | CSV/TSV streaming writers                                                  |
+| …/go-output/escape               | Yes (go.mod:109)            | Never imported                                                                    | escape/v0.38.7        | Per-format escaping, used inside sibling renderers                         |
+| …/go-output/graph                | Yes (go.mod:110)            | Never imported                                                                    | graph/v0.38.7         | DOT + Mermaid renderers                                                    |
+| …/go-output/markdown             | Yes (go.mod:111)            | Never imported                                                                    | markdown/v0.38.7      | Markdown tables                                                            |
+| …/go-output/markup               | Yes (go.mod:112)            | Never imported                                                                    | markup/v0.38.7        | XML/HTML/AsciiDoc + streaming HTML                                         |
+| …/go-output/plantuml             | Yes (go.mod:113)            | Never imported                                                                    | plantuml/v0.38.7      | PlantUML component diagrams                                                |
+| …/go-output/serialization        | Yes (go.mod:114)            | Never imported                                                                    | serialization/v0.38.7 | JSON/YAML/TOML/JSONL; the formats cmdguard's story implicitly needs        |
+| …/go-output/table                | Yes (go.mod:115)            | Never imported                                                                    | table/v0.38.7         | Lipgloss terminal tables; cmdguard's default format lives here, unimported |
+| …/go-output/tree                 | Yes (go.mod:116)            | Never imported                                                                    | tree/v0.38.7          | ASCII box-drawing trees                                                    |
 
 Not in template graph:
 
-| Module path | In template graph | How used | Latest tag | Note |
-|---|---|---|---|---|
-| …/go-output/nom | No | N/A | nom/v0.38.7 | NOM-style live progress; consumer class is build tooling (buildflow), not services |
-| …/go-output/tui | No | N/A | tui/v0.38.7 | Bubble Tea TUI; interactive weight, wrong archetype |
-| …/go-output/bdd | No | N/A | bdd/v0.38.7 | BDD-style capability tests for the lib itself |
-| …/go-output/testhelpers (+ graphtest) | No | N/A | testhelpers/v0.38.7 | Renderer test helpers; only independently consumable submodule per ROADMAP |
-| …/go-output/examples | No | N/A | untagged | Example programs; excluded from auto-tagging (CHANGELOG v0.38.0) |
-| …/go-output/integration | No | N/A | untagged | Cross-module integration tests; excluded from auto-tagging |
+| Module path                           | In template graph | How used | Latest tag          | Note                                                                               |
+| ------------------------------------- | ----------------- | -------- | ------------------- | ---------------------------------------------------------------------------------- |
+| …/go-output/nom                       | No                | N/A      | nom/v0.38.7         | NOM-style live progress; consumer class is build tooling (buildflow), not services |
+| …/go-output/tui                       | No                | N/A      | tui/v0.38.7         | Bubble Tea TUI; interactive weight, wrong archetype                                |
+| …/go-output/bdd                       | No                | N/A      | bdd/v0.38.7         | BDD-style capability tests for the lib itself                                      |
+| …/go-output/testhelpers (+ graphtest) | No                | N/A      | testhelpers/v0.38.7 | Renderer test helpers; only independently consumable submodule per ROADMAP         |
+| …/go-output/examples                  | No                | N/A      | untagged            | Example programs; excluded from auto-tagging (CHANGELOG v0.38.0)                   |
+| …/go-output/integration               | No                | N/A      | untagged            | Cross-module integration tests; excluded from auto-tagging                         |

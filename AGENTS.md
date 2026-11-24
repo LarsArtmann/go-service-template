@@ -5,15 +5,15 @@ in the appkit READMEs (this repo contains no framework code).
 
 ## Docs map — each doc owns one thing
 
-| File                      | Owns                                                     |
-| ------------------------- | -------------------------------------------------------- |
-| `README.md`               | Why the archetype exists, install, rename, how to verify |
-| `FEATURES.md`             | What ships, with honest per-feature status + evidence    |
-| `TODO_LIST.md`            | Open bounded work only (never completed items)           |
-| `ROADMAP.md`              | Long-term direction and raw ideas, not tasks             |
-| `CHANGELOG.md`            | Dated history of what changed                            |
-| `docs/DOMAIN_LANGUAGE.md` | The archetype's vocabulary (verify terms against code)   |
-| `docs/status/`            | Timestamped reports — annotate, never rewrite            |
+| File                      | Owns                                                                                      |
+| ------------------------- | ----------------------------------------------------------------------------------------- |
+| `README.md`               | Why the archetype exists, install, rename, how to verify                                  |
+| `FEATURES.md`             | What ships, with honest per-feature status + evidence                                     |
+| `TODO_LIST.md`            | Open bounded work only (never completed items)                                            |
+| `ROADMAP.md`              | Long-term direction and raw ideas, not tasks                                              |
+| `CHANGELOG.md`            | Dated history of what changed                                                             |
+| `docs/DOMAIN_LANGUAGE.md` | The archetype's vocabulary (verify terms against code)                                    |
+| `docs/status/`            | Timestamped reports — annotate, never rewrite                                             |
 | `docs/review/libs/`       | Fleet library audits — 21 per-lib .md + index.html (snapshot semantics, like docs/status) |
 
 Doctrine: a completed TODO leaves `TODO_LIST.md` for `CHANGELOG.md`; a fact
