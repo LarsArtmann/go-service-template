@@ -152,7 +152,7 @@ five docs-gates runs this session were 10/10 PASS.
 20. T-27.1: score reconciliation script (inventory vs score tables)
 21. T-27.2: citation sweep over the ~1,116 path:line tokens
 22. T-27.3: verify-block conformance lints (the rg trap class becomes mechanical)
-23. T-28.1-T-28.3: independent QC batches over all 21 reports
+23. T-28.1-T-28.3: independent QC batches over all 21 reports <!-- fresh:skip: routed to TODO_LIST row 28 -->
 24. T-29.1: markdown index from report headers + applicable-row counts
 25. T-29.2: glossary entries + CHANGELOG line + screenshot
 26. T-30.1: group upstream findings by owning repo
