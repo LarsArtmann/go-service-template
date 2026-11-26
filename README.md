@@ -46,7 +46,7 @@ exact toolchain). BuildFlow comes from a checkout of its repo (fleet-private,
 Nix-first — see its README):
 
 ```bash
-nix develop                 # toolchain + treefmt + templ, no local installs
+nix develop                 # toolchain + golangci-lint/gopls/govulncheck, no local installs (`nix fmt` is treefmt; the templ generator is `go tool templ`)
 buildflow --build-mode dev  # the full gate: build, race tests, lint, nix, docs
 ```
 
@@ -97,8 +97,9 @@ The OCI image (built from the flake, no Dockerfile):
 nix build .#app-image                             # the image (packages shorthand)
 nix build .#checks.<system>.container-structure   # posture gate: user, ports, entrypoint
 nix build .#checks.<system>.image-smoke-archive   # daemonless: OCI layout at result/layout
-bash scripts/image-smoke.sh result/layout         # boot + endpoint matrix + SIGTERM drain
-skopeo copy oci:result/layout docker-archive:/tmp/app.tar && docker load -i /tmp/app.tar
+bash scripts/image-smoke.sh result/layout         # boot + endpoint matrix + SIGTERM drain (docker or podman)
+skopeo copy oci:result/layout docker-archive:/tmp/app.tar:app:latest   # docker tags only a docker archive
+docker load -i /tmp/app.tar                       # manual load
 docker run --rm -p 8080:8080 app:latest           # manual boot once loaded
 curl -s localhost:8080/version                    # the git rev, stamped via flake ldflags
 ```

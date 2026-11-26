@@ -90,15 +90,14 @@ run_safe "go build -tags events ./..."
 run_safe "go vet -tags events ./..."
 run_safe "dprint check"
 run_safe "gitleaks git ."
-run_safe "templ --version"
+run_safe "go tool templ --version"
 run_safe "golangci-lint --version"
 run_safe "nix flake show --all-systems --json"
 run_safe "docs-gates run ."
 
 # --- MUTATING: proven present, deliberately not executed --------------------
 command -v dprint >/dev/null 2>&1 || bail "MUTATING binary missing: dprint (dprint fmt)"
-command -v go >/dev/null 2>&1 || bail "MUTATING binary missing: go (go mod tidy)"
-command -v templ >/dev/null 2>&1 || bail "MUTATING binary missing: templ (templ generate)"
+command -v go >/dev/null 2>&1 || bail "MUTATING binary missing: go (go mod tidy, go tool templ generate)"
 command -v buildflow >/dev/null 2>&1 || bail "MUTATING binary missing: buildflow (buildflow --fix)"
 
 # --- NEEDS_RUNTIME: classified skips, each with its documented reason -------

@@ -17,6 +17,7 @@
 #   SMOKE_RUNTIME  docker | podman (default: docker if a daemon answers, else podman)
 #
 # Requires: curl, jq, tar; docker (CI) or podman (dev machine, rootless).
+# skopeo as well when the runtime is docker and the input is a layout dir.
 
 set -uo pipefail
 
@@ -30,6 +31,7 @@ expect() { # want actual what
 	if [ "$2" = "$1" ]; then note "ok    $3 = $2"; else bail "$3 = $2 (want $1)"; fi
 }
 
+LAYOUT=""
 ARCHIVE="${1:-}"
 EXPECT="${2:-}"
 
@@ -38,14 +40,13 @@ if [ -z "$ARCHIVE" ]; then
 	exit 1
 fi
 if [ -d "$ARCHIVE" ]; then
-	# OCI layout dir (checks.x86_64-linux.image-smoke-archive output): pack
-	# it into an OCI-layout tarball — docker and podman both load those.
+	# OCI layout dir (checks.x86_64-linux.image-smoke-archive output). It is
+	# turned into a tar below, once the runtime is known.
 	[ -f "$ARCHIVE/index.json" ] || {
 		bail "not an OCI layout (no index.json): $ARCHIVE"
 		exit 1
 	}
-	ARCHIVE="$(mktemp /tmp/image-smoke-XXXXXX.tar)"
-	tar -C "$1" -cf "$ARCHIVE" .
+	LAYOUT="$ARCHIVE"
 elif [ ! -f "$ARCHIVE" ]; then
 	bail "archive not found: $ARCHIVE"
 	exit 1
@@ -83,6 +84,32 @@ RT="$(detect_runtime)" || {
 	exit 1
 }
 
+if [ -n "$LAYOUT" ]; then
+	# podman tags an OCI-layout tarball itself. docker prints "Loaded image:
+	# <ref>" for one but never applies the tag, so the run that follows falls
+	# through to a pull ("pull access denied"); for docker the layout becomes
+	# a docker archive first, which is the only tar form docker tags.
+	ARCHIVE="$(mktemp /tmp/image-smoke-XXXXXX.tar)"
+	if [ "$RT" = podman ]; then
+		tar -C "$LAYOUT" -cf "$ARCHIVE" .
+	else
+		# Same re-exec convenience as podman above: nix provides skopeo.
+		if ! command -v skopeo >/dev/null 2>&1 && command -v nix >/dev/null 2>&1 && [ -z "${SMOKE_SKOPEO_REEXEC:-}" ]; then
+			exec env SMOKE_SKOPEO_REEXEC=1 SMOKE_RUNTIME=docker nix shell nixpkgs#skopeo -c bash "$0" "$@"
+		fi
+		command -v skopeo >/dev/null 2>&1 || {
+			bail "docker needs skopeo to turn an OCI layout into a docker archive: put skopeo on PATH, or pass a docker archive (skopeo copy oci:<layout> docker-archive:<tar>:<ref>)"
+			exit 1
+		}
+		# The layout's own ref name (what packaged it) is the tag to load.
+		REF_NAME="$(jq -r '.manifests[0].annotations["org.opencontainers.image.ref.name"] // empty' "$LAYOUT/index.json")"
+		skopeo copy --insecure-policy "oci:$LAYOUT" "docker-archive:$ARCHIVE:${REF_NAME:-app:latest}" || {
+			bail "skopeo could not convert the layout to a docker archive: $LAYOUT"
+			exit 1
+		}
+	fi
+fi
+
 PORT="${SMOKE_PORT:-18199}"
 port_busy() { curl -s -o /dev/null --connect-timeout 1 "localhost:$1" >/dev/null 2>&1; }
 while port_busy "$PORT"; do PORT=$((PORT + 1)); done
@@ -102,6 +129,12 @@ REF="$(printf '%s' "$LOADOUT" | grep -m1 'Loaded image' | sed 's/^Loaded image[^
 	exit 1
 }
 note "image  $REF"
+# A printed ref is not a loaded ref: docker reports "Loaded image: app:latest"
+# for a tarred OCI layout and still cannot run it. Ask the runtime itself.
+if ! "$RT" image inspect "$REF" >/dev/null 2>&1; then
+	bail "$RT reported '$REF' but cannot resolve it: the archive was loaded without its tag. Pass the OCI layout directory itself (it is converted for docker) or a docker archive, not a tarred layout"
+	exit 1
+fi
 
 "$RT" run -d --name "$NAME" -p "127.0.0.1:$PORT:8080" "$REF" >/dev/null || {
 	bail "container failed to start"
@@ -130,7 +163,6 @@ expect 404 "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/nope")" "/nope"
 VERSION="$(curl -s "$BASE/version" | jq -r '.version')"
 expect "$EXPECT" "$VERSION" "/version stamp (rev-identical image)"
 
-LOG="$("$RT" logs "$NAME" 2>&1)"
 phases="ready_flip drain_hooks drain_wait listener_close shutdown_hooks"
 "$RT" stop -t 20 "$NAME" >/dev/null || bail "SIGTERM stop failed"
 LOG="$("$RT" logs "$NAME" 2>&1)"

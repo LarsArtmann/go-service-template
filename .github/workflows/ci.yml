@@ -38,19 +38,19 @@ jobs:
         run: go vet -tags events ./...
 
       # views/*_templ.go are committed so plain `go build` works without a
-      # templ install. Regenerate and compare: a .templ edit without a
-      # regen (or a generator move that changes emitted code) fails here.
-      # gofmt mirrors the treefmt pass the committed files went through.
-      # The pin is the newest go-installable CLI (v0.3.1123 ships only as
-      # a binary); the generated version-stamp line is excluded from the
-      # diff so a CLI patch release cannot false-fail the check — emitted
-      # code shape still must match byte for byte.
+      # templ install. Regenerate and compare byte for byte: a .templ edit
+      # without a regen, or a templ bump in go.mod without one, fails here.
+      # The generator is the module's own pin: `go tool templ` runs the CLI
+      # at the version go.mod requires (its tool directive), the same command
+      # BuildFlow's templ-generate step runs locally, so a stale templ on
+      # PATH cannot emit a different shape. No formatter runs in between:
+      # treefmt excludes generated templ files (goimports would merge their
+      # import lines), so committed output IS generator output.
       - name: Templ regen drift check
         run: |
-          go install github.com/a-h/templ/cmd/templ@v0.3.1118
-          templ generate
-          gofmt -w views/
-          git diff --ignore-matching-lines='templ: version:' --exit-code views/
+          go tool templ generate
+          git diff --exit-code views/
+          test -z "$(gofmt -l views/)"
 
   secrets:
     runs-on: ubuntu-latest
@@ -122,11 +122,13 @@ jobs:
         run: nix build .#checks.x86_64-linux.image-smoke-archive
 
       - name: Boot, probe and drain the image
-        # The runner has a real docker daemon; the smoke script loads the
-        # layout, boots the container, probes the endpoint matrix, asserts
-        # the /version stamp equals the checkout rev, SIGTERMs and greps the
-        # five drain phases from the logs.
-        run: bash scripts/image-smoke.sh result/layout "$GITHUB_SHA"
+        # The runner has a real docker daemon; the smoke script turns the
+        # layout into a docker archive (docker loads a tarred OCI layout
+        # without applying its tag), boots the container, probes the
+        # endpoint matrix, asserts the /version stamp equals the checkout
+        # rev, SIGTERMs and greps the five drain phases from the logs.
+        # skopeo does the conversion and comes from nix; the runner has none.
+        run: nix shell nixpkgs#skopeo -c bash scripts/image-smoke.sh result/layout "$GITHUB_SHA"
 
   # Darwin without a macOS runner: evaluate every output for every system
   # (aarch64-darwin included) on Linux. Evaluation catches the darwin-only

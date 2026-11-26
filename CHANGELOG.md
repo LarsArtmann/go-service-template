@@ -6,6 +6,25 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- 2026-11-26: generated templ code has one owner again, and that fixed the
+  red `build-vet-test` job. Root cause (runs 45478490139, 45541569014, red
+  since `a310619`): treefmt's goimports merges the two `import` lines templ
+  emits, while CI's regen check compared against `gofmt` output, which does
+  not merge, so the committed file and every regen disagreed. It was not a
+  templ version difference: v0.3.1100, v0.3.1118 and the host's v0.3.1123
+  all emit the same two-line shape (verified), which retires the 2026-11-25
+  interim diagnosis (standardize on a go-installed v0.3.1118, skip
+  templ-generate locally). Two changes. (1) `flake.nix` excludes
+  `*_templ.go` from treefmt's gofumpt and goimports, so committed output IS
+  generator output. (2) The generator is pinned by construction: `go.mod`
+  declares `tool github.com/a-h/templ/cmd/templ`, so `go tool templ` runs
+  the CLI at the module's own pin (v0.3.1100, the one the runtime uses),
+  BuildFlow's templ-generate and templ-fmt steps detect the directive and
+  switch to `go tool templ`, and CI's drift check is `go tool templ
+  generate`, `git diff --exit-code views/`, plus a gofmt-clean assertion.
+  18 fleet repos already pin templ this way. `vendorHash.nix` moved with
+  the tool's indirect requires (`buildflow -s nix-hash-fix --fix`). README
+  fixed on sight: `nix develop` ships neither templ nor treefmt.
 - 2026-11-24 (Pareto plan, T-1.1-T-1.3): TODO row 1 (image boot-smoke) is
   closed. The image now boots: rootless podman (nixpkgs) loads it via the
   n2c-patched skopeo's `nix:` transport (stock nixpkgs skopeo rejects that
@@ -121,6 +140,26 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- 2026-11-26: CI red since `a310619` (runs 45478490139, 45541569014,
+  45757856115), one cause per job. (1) `build-vet-test`, templ drift: the
+  generator-ownership change above. (2) `nix-image`: `docker load` on a
+  tarred OCI layout prints `Loaded image:
+  app:latest` but never applies the tag, so the run fell through to a pull
+  (`pull access denied for app`). `scripts/image-smoke.sh` now converts a
+  layout to a docker archive when the runtime is docker (stock skopeo, via
+  `nix shell nixpkgs#skopeo` when it is not on PATH; podman tags a layout
+  itself and keeps the tar path) and asks the runtime to resolve the loaded
+  ref before running it, so an untagged load fails with that diagnosis.
+  CI runs `nix shell nixpkgs#skopeo -c bash scripts/image-smoke.sh
+  result/layout "$GITHUB_SHA"`. Proven locally on every branch: podman +
+  layout, podman + docker archive, the docker branch through podman's
+  docker-compatible CLI, the untagged-load guard (stub runtime), the
+  missing-skopeo message. The check itself cannot emit the docker archive:
+  skopeo's `docker-archive:` destination hard-codes `/var/tmp` for its temp
+  layer and ignores `CONTAINERS_IMAGE_TMP` (reproduced in-sandbox). README's
+  manual docker path fixed too: its `skopeo copy … docker-archive:/tmp/app.tar`
+  loaded an untagged image, so the `docker run app:latest` after it could
+  never work; it now names the ref.
 - 2026-11-22 (docs-health audit): the `nix-image` CI job ran
   `nix build .#checks.container-structure`, which does not resolve — `checks`
   is a per-system attrset and the `.#name` shorthand only reaches

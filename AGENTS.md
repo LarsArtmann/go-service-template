@@ -21,14 +21,14 @@ lives in exactly one doc; `docs-gates run .` is the gate over all of it.
 
 ## Version stamp (drift control — bump via the ritual, not by hand)
 
-| Component        | Value                                                                                                                                |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Template source  | github.com/LarsArtmann/go-service-template                                                                                           |
-| Generated        | 2026-11-21                                                                                                                           |
-| go-appkit preset | v0.1.1 (core v0.12.0, httpx v0.2.0, cqrs v0.9.0, config v0.1.1)                                                                      |
-| cmdguard         | v5.1.0                                                                                                                               |
-| templ (runtime)  | v0.3.1100 (the fleet-migrated pairing: templ-components v1.27.2 + go-health-dashboard v0.13.3; cmdguard v5.1.0 requires ≥ v0.3.1100) |
-| Go floor         | 1.27.4                                                                                                                               |
+| Component                   | Value                                                                                                                                                                                                              |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Template source             | github.com/LarsArtmann/go-service-template                                                                                                                                                                         |
+| Generated                   | 2026-11-21                                                                                                                                                                                                         |
+| go-appkit preset            | v0.1.1 (core v0.12.0, httpx v0.2.0, cqrs v0.9.0, config v0.1.1)                                                                                                                                                    |
+| cmdguard                    | v5.1.0                                                                                                                                                                                                             |
+| templ (runtime + generator) | v0.3.1100 (the fleet-migrated pairing: templ-components v1.27.2 + go-health-dashboard v0.13.3; cmdguard v5.1.0 requires ≥ v0.3.1100); the generator is pinned to the same version by the `go.mod` `tool` directive |
+| Go floor                    | 1.27.4                                                                                                                                                                                                             |
 
 Refresh ritual: every preset/core-touching appkit train bumps this stamp and
 re-runs the dogfood probe (build, boot, `/healthz` + `/api/status` probe,
@@ -82,6 +82,7 @@ nix build .#checks.<system>.container-structure  # posture gate (per-system attr
 go build ./...
 go vet ./...
 go test ./... -race -count=1
+go tool templ generate     # regenerate committed views with the pinned generator
 golangci-lint run ./...        # config copied from the appkit fleet standard
 nix build                      # vendorHash.nix + goTarballHash.nix are filled; a floor bump prints the new hash
 ```
@@ -104,19 +105,35 @@ No daemon ever runs on the dev machine. The proven pipeline:
 1. **Runtime:** rootless podman from nixpkgs (`nix shell nixpkgs#podman`) —
    subuid/subgid ranges exist (`lars:100000:65536`), storage at
    `~/.local/share/containers`.
-2. **Load:** the n2c-patched skopeo (the one `copy-to-docker-daemon` already
-   wires, `skopeo-nix2container` in nlewo/nix2container) has the `nix:`
-   transport; nixpkgs' stock skopeo does NOT (`unknown transport "nix"`), so
-   `apps.app-image-load` alone is broken on this pin (fleet finding).
-   `checks.<system>.image-smoke-archive` packages the image into an OCI
-   layout in-sandbox (it extracts that same skopeo from the copy app and
-   must `export CONTAINERS_IMAGE_TMP=` somewhere writable — skopeo stages
-   copies in `/var/tmp`, absent in the build sandbox).
+2. **Load:** `checks.<system>.image-smoke-archive` packages the image into
+   an OCI layout in-sandbox, through the n2c-patched skopeo that
+   `copy-to-docker-daemon` (the `app-image-load` app) wires in
+   (`skopeo-nix2container` in nlewo/nix2container, the only skopeo with the
+   `nix:` transport; a stock one answers `unknown transport "nix"`). The
+   check must `export CONTAINERS_IMAGE_TMP=` somewhere writable (that skopeo
+   stages copies in `/var/tmp`, absent in the build sandbox), and it can
+   write only the layout, never a docker archive: skopeo's
+   `docker-archive:` destination hard-codes `/var/tmp` for its temp layer
+   and ignores `CONTAINERS_IMAGE_TMP` (reproduced in-sandbox 2026-11-26,
+   skopeo 1.25.1). Outside the sandbox a stock `nix shell nixpkgs#skopeo`
+   converts `oci:` to `docker-archive:` fine.
+   `nix run .#app-image-load` (direct to a docker daemon) is unproven: it
+   fails against podman's docker-API socket with `writing blob: io:
+   read/write on closed pipe` (2026-11-26) and has never run against a real
+   docker daemon.
 3. **Probe:** `bash scripts/image-smoke.sh result/layout` — runs detached on
    a free port, endpoint matrix + `/version` = the exact git rev, `/nope`
    404, `podman stop -t 20` (SIGTERM), logs show all five drain phases.
+   podman tags a tarred OCI layout itself; docker prints `Loaded image:
+   app:latest` for one and never applies the tag, so for docker the script
+   converts the layout to a docker archive first (skopeo; `nix shell
+   nixpkgs#skopeo` when it is not on PATH) and asks the runtime to resolve
+   the ref before running it (an untagged load fails with that diagnosis
+   instead of `pull access denied`).
 
-`scripts/image-smoke.sh` wraps steps 2-3; CI runs it with docker. Evidence
+`scripts/image-smoke.sh` wraps steps 2-3; CI runs it with docker (proven
+2026-11-26 on the docker branch through podman's docker-compatible CLI: all
+endpoints 200, rev-identical stamp, 404, five phases). Podman evidence
 2026-11-24: all endpoints 200, version `a406d8f…` (rev-identical), 404, five
 phases (`ready_flip` → `shutdown_hooks`) in `podman logs`.
 
@@ -162,9 +179,18 @@ they are not layered.
 - `internal/events/` is behind the `events` build tag; `go mod tidy` keeps
   the cqrs require alive because tidy considers all build configurations.
 - `views/*_templ.go` files are COMMITTED so plain `go build` works without a
-  templ install; regenerate with `templ generate` after editing `.templ`
-  files, then run the formatter (`buildflow --fix`) — regen output can
-  re-drift from the treefmt-fixed committed copy.
+  templ install, and they are the generator's raw output, byte for byte.
+  Regenerate with `go tool templ generate` after editing `.templ` files and
+  commit the result as generated: no formatter pass is needed. The `go.mod`
+  `tool github.com/a-h/templ/cmd/templ` directive pins the generator to the
+  module's own templ version; BuildFlow's templ-generate/templ-fmt steps
+  detect it and run `go tool templ` too. Never a bare `templ generate`: it
+  runs whatever is on PATH (the host's 0.3.1123 here). treefmt excludes
+  `*_templ.go` (`treefmt.programs` in `flake.nix`): its goimports merges
+  the generator's two import lines, and that formatter-vs-generator split,
+  not a templ version difference (0.3.1100, 0.3.1118 and 0.3.1123 emit the
+  same shape), is what kept CI's byte-for-byte drift check red from
+  `a310619` to 2026-11-26. The devShell ships no templ on purpose.
 - Signal handling is the framework's (core `Run`); do not add a second
   NotifyContext.
 - Probe boot on a non-8080 port (`APP_ADDR=:18089`) — dev machines commonly

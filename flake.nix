@@ -42,6 +42,24 @@
           ...
         }:
         {
+          # Generated templ code is the generator's, byte for byte: CI's
+          # drift check diffs the committed files against raw `go tool templ
+          # generate` output, so no formatter may rewrite them. treefmt's
+          # goimports merges the generator's two import lines, which split
+          # the committed files from every regen and kept CI red
+          # (2026-11-24 to 26). vendor/* is treefmt-nix's own default
+          # exclude; an explicit list replaces it, so it rides along.
+          treefmt = {
+            programs.gofumpt.excludes = [
+              "vendor/*"
+              "*_templ.go"
+            ];
+            programs.goimports.excludes = [
+              "vendor/*"
+              "*_templ.go"
+            ];
+          };
+
           checks =
             let
               docsCommandSmoke =
@@ -71,9 +89,10 @@
               { docs-command-smoke = docsCommandSmoke; }
               (lib.optionalAttrs pkgs.stdenv.isLinux {
                 # The daemonless half of the image smoke: turn the nix2container
-                # spec into a docker-archive that scripts/image-smoke.sh (or any
-                # runtime) can load. Booting needs a daemon, so it happens in CI
-                # and locally. Linux-only like the image itself.
+                # spec into an OCI layout that scripts/image-smoke.sh loads
+                # (as is under podman, converted to a docker archive under
+                # docker). Booting needs a daemon, so it happens in CI and
+                # locally. Linux-only like the image itself.
                 image-smoke-archive =
                   pkgs.runCommand "image-smoke-archive"
                     {
@@ -81,8 +100,7 @@
                     }
                     ''
                       # The fleet module's copy app carries the skopeo built with the
-                      # `nix:` transport; stock nixpkgs skopeo rejects that transport
-                      # (apps.app-image-load alone is therefore broken on this pin).
+                      # `nix:` transport; a stock skopeo rejects that transport.
                       # Parse it out of the app's PATH export so this check rides
                       # whatever skopeo the module chose — and fails loudly the day
                       # the module stops providing one.
@@ -92,7 +110,10 @@
                       export HOME=$out/tmp
                       # containers/image stages copy temporaries under /var/tmp by
                       # default (CONTAINERS_IMAGE_TMP), which is not writable in the
-                      # build sandbox — point the copy at $out.
+                      # build sandbox — point the copy at $out. This is why the
+                      # destination is a layout and not a docker archive: skopeo's
+                      # docker-archive destination hard-codes /var/tmp for its temp
+                      # layer and ignores CONTAINERS_IMAGE_TMP.
                       export CONTAINERS_IMAGE_TMP=$out/tmp
                       "$skopeo_nix" --insecure-policy copy nix:${self'.packages.app-image} oci:$out/layout:app:latest
                       test -s $out/layout/index.json
