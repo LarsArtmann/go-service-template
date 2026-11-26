@@ -138,6 +138,10 @@ All notable changes to this project are documented in this file.
   `ExposedPorts` footgun note; AGENTS.md gained buildflow-first commands,
   systemd-vs-container deploy paths, and templ/treefmt gotchas.
 
+- TODO_LIST purge (2026-11-26): | 12 | Add a CI security-scanning step (gitleaks) — `SECURITY.md` no longer claims scanning exists, so the gap is visible and should be closed.                                                                             | DONE  | Low    | S      | `.github/workflows/ci.yml` carries no scanner; the false claim was removed this sweep.                                                                                                                                                                     | — done (dc563f2, 689780f; CI run 45809437610 `secrets` job: 87 commits scanned, no leaks)
+- TODO_LIST purge (2026-11-26): | 13 | CI: cache the `go install golangci-lint` step.                                                                                                                                                                       | DONE  | Low    | S      | `.github/workflows/ci.yml:41-42` reinstalls the pinned binary on every run. §f30                                                                                                                                                                           | — done (dc563f2; CI run 45809437610 `lint` job: cache hit for golangci-lint-v2.15.0, restored)
+- TODO_LIST purge (2026-11-26): | 18 | Complete the CI build surface: `go build -tags events ./...` + `go vet -tags events ./...` (nothing proves `internal/events/` compiles) and a templ-regen drift check (`templ generate` → `git diff --exit-code views/`; the committed-generated-files gotcha is prose-policed only). | DONE  | High | S | `internal/events/events.go:1` (build tag); AGENTS templ gotcha. Neither command runs in CI or the gate today. §f6, §f7 | — done (dc563f2, reworked 7ff6c8e; CI run 45809437610 `build-vet-test` job: events-tag build and vet, byte-exact templ drift check)
+
 ### Fixed
 
 - 2026-11-26: CI red since `a310619` (runs 45478490139, 45541569014,
