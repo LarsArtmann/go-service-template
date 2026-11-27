@@ -87,7 +87,7 @@
             in
             lib.mkMerge [
               { docs-command-smoke = docsCommandSmoke; }
-              (lib.optionalAttrs pkgs.stdenv.isLinux {
+              (lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
                 # The daemonless half of the image smoke: turn the nix2container
                 # spec into an OCI layout that scripts/image-smoke.sh loads
                 # (as is under podman, converted to a docker archive under

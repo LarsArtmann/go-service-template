@@ -49,23 +49,25 @@ note "port  $PORT"
 
 edge_bind_failure() { # occupying the port must fail the boot with the
 	# classified listen-failure, not a hang or a panic.
-	local log pid first_line
-	python3 -c "
-import socket, time
-s = socket.socket()
-s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-s.bind(('127.0.0.1', $PORT))
-s.listen(1)
-time.sleep(12)
-" &
-	local squatter=$!
-	sleep 0.5
+	local squatter squatter_log log first_line
+	squatter_log="$(mktemp)"
+	# The squatter is the binary itself: a first instance holds the port, so
+	# this edge case needs nothing beyond what the probe already requires.
+	APP_ADDR=":$PORT" "$BIN" serve >"$squatter_log" 2>&1 &
+	squatter=$!
+	for _ in $(seq 1 50); do
+		port_busy "$PORT" && break
+		sleep 0.2
+	done
+	port_busy "$PORT" || bail "could not occupy :$PORT for the bind-failure case"
 	log="$(mktemp)"
-	APP_ADDR=":$PORT" "$BIN" serve >"$log" 2>&1
-	pid=$!
+	# Bounded on purpose: should the second instance ever win the bind, it
+	# would serve forever and hang the probe.
+	APP_ADDR=":$PORT" timeout 10 "$BIN" serve >"$log" 2>&1
+	kill "$squatter" >/dev/null 2>&1 || true
 	wait "$squatter" 2>/dev/null || true
-	first_line="$(cat "$log" | tr '\n' ' ')"
-	rm -f "$log"
+	first_line="$(tr '\n' ' ' <"$log")"
+	rm -f "$log" "$squatter_log"
 	if printf '%s' "$first_line" | grep -q "listen_failed"; then
 		note "ok    bind failure classified: [Infrastructure:server.listen_failed]"
 	else
@@ -74,18 +76,18 @@ time.sleep(12)
 }
 
 edge_drain_under_load() { # an in-flight request must outlive SIGTERM
-	local log pid body
-	LOG2="$(mktemp)"
-	APP_ADDR=":$PORT" "$BIN" serve >"$LOG2" 2>&1 &
+	local log pid slow
+	log="$(mktemp)"
+	APP_ADDR=":$PORT" "$BIN" serve >"$log" 2>&1 &
 	pid=$!
 	for _ in $(seq 1 50); do
 		[ "$(curl -s -o /dev/null -w '%{http_code}' "localhost:$PORT/healthz")" = "200" ] && break
 		sleep 0.2
 	done
-	# A slow request against /api/status: /health flips to 503 only after
-	# the drain's ready_flip, so give the request a head start instead.
-	curl -s -N "localhost:$PORT/health" --max-time 20 >"$LOG2.body" 2>/dev/null &
-	local slow=$!
+	# The in-flight request is the /health SSE stream, which stays open; it
+	# gets a head start so it is surely in flight when SIGTERM lands.
+	curl -s -N "localhost:$PORT/health" --max-time 20 >"$log.body" 2>/dev/null &
+	slow=$!
 	sleep 0.3
 	kill -TERM "$pid"
 	wait "$slow" 2>/dev/null
@@ -96,25 +98,27 @@ edge_drain_under_load() { # an in-flight request must outlive SIGTERM
 		sleep 0.2
 	done
 	wait "$pid" 2>/dev/null
-	if grep -q "drain_wait" "$LOG2"; then
+	if grep -q "drain_wait" "$log"; then
 		note "ok    drain waited for in-flight traffic (drain_wait logged)"
 	else
-		bail "no drain_wait under load: $(head -3 "$LOG2" | tr '\n' ' ')"
+		bail "no drain_wait under load: $(head -3 "$log" | tr '\n' ' ')"
 	fi
-	rm -f "$LOG2" "$LOG2.body"
+	rm -f "$log" "$log.body"
 }
 
 LOG="$(mktemp)"
+PID=""
+cleanup() {
+	if [ -n "$PID" ]; then
+		kill "$PID" >/dev/null 2>&1 || true
+		wait "$PID" 2>/dev/null || true
+	fi
+	rm -f "$LOG"
+}
 
 if [ "$EDGE_ONLY" -eq 0 ]; then
 	APP_ADDR=":$PORT" "$BIN" serve >"$LOG" 2>&1 &
 	PID=$!
-
-	cleanup() {
-		kill "$PID" >/dev/null 2>&1 || true
-		wait "$PID" 2>/dev/null || true
-		rm -f "$LOG"
-	}
 	trap cleanup EXIT
 
 	# Wait for readiness by polling /healthz (the probe endpoint itself).
@@ -160,6 +164,7 @@ if [ "$EDGE_ONLY" -eq 0 ]; then
 	wait "$PID" 2>/dev/null
 	code=$?
 	[ "$code" -le 143 ] || bail "serve exited $code on SIGTERM"
+	PID=""
 
 	phases="ready_flip drain_hooks drain_wait listener_close shutdown_hooks"
 	for phase in $phases; do

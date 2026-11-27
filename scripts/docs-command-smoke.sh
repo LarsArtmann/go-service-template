@@ -22,7 +22,7 @@ set -uo pipefail
 # the docs elsewhere.
 _from="$(pwd)"
 cd "$(dirname "$0")/.." 2>/dev/null || true
-[ -f "README.md" ] || cd "$_from"
+[ -f "README.md" ] || cd "$_from" || true
 DOCS_DIR="${DOCS_DIR:-.}"
 
 DOCS=(README.md AGENTS.md CONTRIBUTING.md FEATURES.md TODO_LIST.md ROADMAP.md CHANGELOG.md docs/DOMAIN_LANGUAGE.md)

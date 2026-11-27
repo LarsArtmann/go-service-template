@@ -10,3 +10,11 @@ env:
   # still applies (an exported GOTOOLCHAIN preempts this). Bump together
   # with go.mod on every appkit floor train.
   GOTOOLCHAIN: "go1.27.4"
+
+tool_options:
+  # The patch-pinned floor (`go 1.27.4` in go.mod) is policy, not drift: the
+  # flake builds that exact toolchain from the go.dev tarball and the AGENTS
+  # stamp table mirrors it. This tells both rewriters of the go line (the
+  # version auto-configurer and the go.mod normalizer) to leave it alone.
+  go-version-auto-configure:
+    respect_patch_floor: true

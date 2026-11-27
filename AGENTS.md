@@ -163,12 +163,14 @@ they are not layered.
   `container.registry` + package name) all carry the template identity. The
   README's rename section has the `grep -rl | xargs perl -pi` command and
   the proof step; run the proof, not just the rename.
-- **`dprint.json` names absolute plugin paths**
-  (`/home/lars/.local/state/buildflow/dprint-plugins/...`) whenever
-  `BUILDFLOW_DPRINT_PLUGINS` is set, which is the owner machine's default.
-  BuildFlow regenerates that form, so hand-editing it is whack-a-mole; an
-  adopter on another machine resolves the committed absolute paths to nothing.
-  Tracked as TODO_LIST row 10.
+- **`dprint.json` pins its four plugins by remote URL.** That is byte for
+  byte the default BuildFlow generates on a machine without its vendored
+  plugin bundle, so an adopter's fresh clone formats without local setup;
+  first use fetches each plugin once into `~~/.cache/dprint`. A machine that
+  exports `BUILDFLOW_DPRINT_PLUGINS` gets an advisory doctor warning about
+  the remote plugins and nothing more: BuildFlow generates `dprint.json`
+  only when the file is absent and never rewrites an existing one (verified
+  2026-11-26 against `ff4aaa4`), so the committed form is stable.
 - `.dockerignore` is a BuildFlow regeneration artifact kept despite the
   `hasDockerfile` gate. It is inert (no Dockerfile by policy); do not treat
   its presence as Docker posture. Upstream investigation: TODO_LIST row 7.
