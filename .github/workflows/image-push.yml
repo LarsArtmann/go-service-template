@@ -1,0 +1,56 @@
+# Publish the Nix-built OCI image to GHCR (TODO row 5).
+#
+# Explicit by design: a version tag or a manual dispatch, never every push
+# to master. This is a template, and its placeholder image should not be
+# republished on each commit; adopters choose their own cadence (add
+# `branches: [master]` under `push` for a latest-on-master image).
+#
+# The flake builds the image (nix2container, no Dockerfile); this workflow
+# only ships it through the go-standard module's own push app
+# (`nix run .#app-image-push`), so CI owns the credentials instead of the
+# developer machine. No secret is configured: the built-in GITHUB_TOKEN
+# carries `packages: write` for this repository's packages.
+#
+# Both skopeo invocations (the nixpkgs one for login and re-tagging, the
+# module's nix2container one inside the push app) read one auth file through
+# REGISTRY_AUTH_FILE.
+name: image-push
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  push-ghcr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
+
+      - uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # v15
+
+      - name: Point both skopeo builds at one auth file
+        run: echo "REGISTRY_AUTH_FILE=${{ runner.temp }}/ghcr-auth.json" >> "$GITHUB_ENV"
+
+      - name: Log in to GHCR
+        run: printf '%s' "${{ secrets.GITHUB_TOKEN }}" | nix shell nixpkgs#skopeo -c skopeo login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      # The app pushes the image under its content-hash tag: identical
+      # inputs give an identical tag.
+      - name: Push image
+        run: nix run .#app-image-push
+
+      # The content-hash tag is reproducible but not findable from a commit,
+      # so the same layers also get the commit's short sha as a second tag.
+      - name: Tag the commit
+        run: |
+          name="$(nix eval --raw .#app-image.imageName)"
+          tag="$(nix eval --raw .#app-image.imageTag)"
+          nix shell nixpkgs#skopeo -c skopeo copy "docker://$name:$tag" "docker://$name:${GITHUB_SHA::12}"
+          echo "pushed $name:$tag and $name:${GITHUB_SHA::12}"
