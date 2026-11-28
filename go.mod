@@ -3,11 +3,11 @@ module github.com/example/go-service-template
 go 1.27.4
 
 require (
-	github.com/a-h/templ v0.3.1100
+	github.com/a-h/templ v0.3.1118
 	github.com/larsartmann/cmdguard/v5 v5.1.0
-	github.com/larsartmann/go-appkit v0.12.0
+	github.com/larsartmann/go-appkit v0.13.1
 	github.com/larsartmann/go-appkit/config v0.1.1
-	github.com/larsartmann/go-appkit/cqrs v0.9.0
+	github.com/larsartmann/go-appkit/cqrs v0.10.0
 	github.com/larsartmann/go-appkit/httpx v0.2.0
 	github.com/larsartmann/go-appkit/preset v0.1.1
 )
@@ -17,8 +17,8 @@ require (
 	charm.land/lipgloss/v2 v2.0.6 // indirect
 	github.com/Oudwins/tailwind-merge-go v0.2.3 // indirect
 	github.com/ThreeDotsLabs/watermill v1.5.3 // indirect
-	github.com/a-h/parse v0.0.0-20250122154542-74294addb73e // indirect
-	github.com/andybalholm/brotli v1.2.7 // indirect
+	github.com/a-h/parse v0.0.42 // indirect
+	github.com/andybalholm/brotli v1.3.0 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/bits-and-blooms/bitset v1.29.0 // indirect
@@ -82,11 +82,11 @@ require (
 	github.com/larsartmann/go-cqrs-lite/dedup/v4 v4.3.0 // indirect
 	github.com/larsartmann/go-cqrs-lite/dispatcher/v4 v4.5.2 // indirect
 	github.com/larsartmann/go-cqrs-lite/event/v4 v4.15.2 // indirect
-	github.com/larsartmann/go-cqrs-lite/id/v4 v4.7.4 // indirect
+	github.com/larsartmann/go-cqrs-lite/id/v4 v4.7.5 // indirect
 	github.com/larsartmann/go-cqrs-lite/metadata/v4 v4.7.3 // indirect
 	github.com/larsartmann/go-cqrs-lite/metaengine/projectionadapter/v4 v4.6.2 // indirect
-	github.com/larsartmann/go-cqrs-lite/metaengine/sqliteengine/v4 v4.6.0 // indirect
-	github.com/larsartmann/go-cqrs-lite/metaengine/v4 v4.20.0 // indirect
+	github.com/larsartmann/go-cqrs-lite/metaengine/sqliteengine/v4 v4.9.1 // indirect
+	github.com/larsartmann/go-cqrs-lite/metaengine/v4 v4.26.0 // indirect
 	github.com/larsartmann/go-cqrs-lite/middleware/v4 v4.7.2 // indirect
 	github.com/larsartmann/go-cqrs-lite/otel/v4 v4.5.3 // indirect
 	github.com/larsartmann/go-cqrs-lite/projection/v4 v4.4.2 // indirect
@@ -95,7 +95,7 @@ require (
 	github.com/larsartmann/go-cqrs-lite/record/v4 v4.6.2 // indirect
 	github.com/larsartmann/go-cqrs-lite/schema/v4 v4.7.1 // indirect
 	github.com/larsartmann/go-cqrs-lite/snapshot/v4 v4.7.0 // indirect
-	github.com/larsartmann/go-cqrs-lite/system/v4 v4.16.0 // indirect
+	github.com/larsartmann/go-cqrs-lite/system/v4 v4.19.0 // indirect
 	github.com/larsartmann/go-cqrs-lite/watermill/v4 v4.7.0 // indirect
 	github.com/larsartmann/go-datastar v0.6.2 // indirect
 	github.com/larsartmann/go-datastar/static v0.8.0 // indirect
@@ -179,10 +179,10 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.6 // indirect
 	golang.org/x/exp v0.0.0-20261014143641-f0251eb4aa3e // indirect
-	golang.org/x/mod v0.42.0 // indirect
+	golang.org/x/mod v0.43.0 // indirect
 	golang.org/x/net v0.62.0 // indirect
-	golang.org/x/sync v0.24.0 // indirect
-	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/sync v0.25.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/term v0.47.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
